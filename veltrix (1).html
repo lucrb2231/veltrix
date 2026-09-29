@@ -1,0 +1,2209 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Veltrix Smart System - Centro Educativo Los Pinos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#FFE156',
+                            500: '#FFD700',
+                            600: '#D4AF37',
+                        },
+                        darkbg: '#0D0D0D',
+                        cardbg: '#1E1E1E',
+                        borderbg: '#2A2A2A'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for visual icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Face recognition model: detects a face and creates a 128-value biometric descriptor -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body {
+            background-color: #0D0D0D;
+            color: #E5E7EB;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0D0D0D;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2A2A2A;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FFD700;
+        }
+        .scanner-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #FFD700, transparent);
+            box-shadow: 0 0 15px #FFD700;
+            animation: scan 2.2s infinite ease-in-out;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0.2; }
+            50% { top: 95%; opacity: 1; }
+            100% { top: 0%; opacity: 0.2; }
+        }
+        .glow-gold {
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.12);
+        }
+        .tab-content:not(.hidden) {
+            animation: content-enter 460ms cubic-bezier(.16, 1, .3, 1) both;
+        }
+        .staff-card {
+            position: relative;
+            overflow: hidden;
+            animation: card-enter 560ms cubic-bezier(.16, 1, .3, 1) both;
+            transition: transform 320ms cubic-bezier(.16, 1, .3, 1), border-color 260ms ease, box-shadow 320ms ease;
+        }
+        .staff-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0;
+            background: radial-gradient(circle at top right, rgba(255, 215, 0, .09), transparent 55%);
+            transition: opacity 220ms ease;
+        }
+        .staff-card:hover {
+            transform: translateY(-7px) scale(1.015);
+            border-color: rgba(255, 215, 0, .45);
+            box-shadow: 0 18px 38px rgba(0, 0, 0, .32), 0 0 26px rgba(255, 215, 0, .09);
+        }
+        .staff-card:hover::after { opacity: 1; }
+        .staff-card:focus-visible {
+            outline: 2px solid rgba(255, 215, 0, .8);
+            outline-offset: 3px;
+        }
+        .staff-speech-bubble {
+            position: relative;
+            padding: 14px 15px;
+            border: 1px solid rgba(255, 215, 0, .28);
+            border-radius: 16px 16px 16px 5px;
+            background: linear-gradient(145deg, rgba(255, 215, 0, .09), rgba(30, 30, 30, .98) 58%);
+            box-shadow: 0 12px 26px rgba(0, 0, 0, .2);
+            transform-origin: 20px 0;
+        }
+        .staff-speech-bubble::before {
+            content: "";
+            position: absolute;
+            top: -7px;
+            left: 20px;
+            width: 13px;
+            height: 13px;
+            background: #282517;
+            border-left: 1px solid rgba(255, 215, 0, .28);
+            border-top: 1px solid rgba(255, 215, 0, .28);
+            transform: rotate(45deg);
+        }
+        .staff-speech-bubble:not(.hidden) {
+            animation: speech-pop 380ms cubic-bezier(.16, 1, .3, 1) both;
+        }
+        .staff-card.is-open {
+            border-color: rgba(255, 215, 0, .55);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, .07);
+        }
+        .staff-card:nth-child(2) { animation-delay: 55ms; }
+        .staff-card:nth-child(3) { animation-delay: 110ms; }
+        .staff-card:nth-child(4) { animation-delay: 165ms; }
+        .staff-card:nth-child(5) { animation-delay: 220ms; }
+        .staff-card:nth-child(6) { animation-delay: 275ms; }
+        .staff-card:nth-child(7) { animation-delay: 330ms; }
+        .stat-card {
+            transition: transform 320ms cubic-bezier(.16, 1, .3, 1), border-color 260ms ease, box-shadow 320ms ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-7px) scale(1.02);
+            border-color: rgba(255, 215, 0, .4);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, .25), 0 0 18px rgba(255, 215, 0, .06);
+        }
+        .stat-icon {
+            transition: transform 320ms cubic-bezier(.16, 1, .3, 1), box-shadow 320ms ease;
+        }
+        .stat-card:hover .stat-icon {
+            transform: rotate(-9deg) scale(1.12);
+            box-shadow: 0 0 20px rgba(255, 215, 0, .12);
+        }
+        #students-table-body tr {
+            transition: transform 260ms cubic-bezier(.16, 1, .3, 1), background-color 220ms ease;
+        }
+        #students-table-body tr:hover { transform: translateX(5px); }
+        .tab-content > .bg-cardbg.border,
+        .tab-content > div > .bg-cardbg.border {
+            transition: transform 320ms cubic-bezier(.16, 1, .3, 1), border-color 260ms ease, box-shadow 320ms ease;
+        }
+        .tab-content > .bg-cardbg.border:hover,
+        .tab-content > div > .bg-cardbg.border:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 215, 0, .2);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .2);
+        }
+        .nav-item, button {
+            transition: transform 240ms cubic-bezier(.16, 1, .3, 1), background-color 220ms ease, border-color 220ms ease, color 220ms ease, box-shadow 240ms ease;
+        }
+        button:not(:disabled):hover { transform: translateY(-2px) scale(1.02); }
+        button:not(:disabled):active { transform: translateY(0) scale(.97); }
+        input, select, textarea {
+            transition: border-color 220ms ease, box-shadow 240ms ease;
+        }
+        input:hover, select:hover, textarea:hover {
+            border-color: rgba(255, 215, 0, .35);
+        }
+        input:focus, select:focus, textarea:focus {
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, .08);
+        }
+        @keyframes content-enter {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes card-enter {
+            from { opacity: 0; transform: translateY(18px) scale(.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes speech-pop {
+            0% { opacity: 0; transform: translateY(-8px) scale(.94); }
+            70% { opacity: 1; transform: translateY(2px) scale(1.015); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes toast-enter {
+            from { opacity: 0; transform: translateX(18px) scale(.97); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes row-enter {
+            from { opacity: 0; transform: translateY(9px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast-message { animation: toast-enter 320ms cubic-bezier(.16, 1, .3, 1) both; }
+        #students-table-body tr { animation: row-enter 300ms cubic-bezier(.16, 1, .3, 1) both; }
+        #students-table-body tr:nth-child(2) { animation-delay: 25ms; }
+        #students-table-body tr:nth-child(3) { animation-delay: 50ms; }
+        #students-table-body tr:nth-child(4) { animation-delay: 75ms; }
+        #students-table-body tr:nth-child(5) { animation-delay: 100ms; }
+        #attendance-scan-result > * { animation: content-enter 340ms cubic-bezier(.16, 1, .3, 1) both; }
+        #attendance-scan-result > *:nth-child(2) { animation-delay: 45ms; }
+        #attendance-scan-result > *:nth-child(3) { animation-delay: 90ms; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: .01ms !important;
+            }
+            button:not(:disabled):hover, button:not(:disabled):active, .staff-card:hover, .stat-card:hover,
+            .staff-card.is-open,
+            #students-table-body tr:hover, .tab-content > .bg-cardbg.border:hover,
+            .tab-content > div > .bg-cardbg.border:hover {
+                transform: none;
+            }
+        }
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        body { overflow-x: hidden; }
+        #app-layout, #app-sidebar, #main-content { min-width: 0; }
+        img, video, svg { max-width: 100%; }
+        #toast-container { max-width: calc(100vw - 2rem); }
+        #toast-container .toast-message { overflow-wrap: anywhere; }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            #app-layout { gap: 1rem; padding: 1.25rem 1rem; }
+            #app-sidebar { width: 205px; }
+            #primary-nav { padding: .6rem; }
+            #primary-nav .nav-item { gap: .55rem; padding: .75rem .7rem; }
+            .tab-content > .bg-cardbg.border,
+            .tab-content > div > .bg-cardbg.border { padding: 1.25rem; }
+            #tab-attendance-modal > div > div.grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 767px) {
+            header .max-w-7xl {
+                height: auto;
+                min-height: 4rem;
+                padding: .55rem .85rem;
+            }
+            #app-layout {
+                display: flex;
+                flex-direction: column;
+                gap: .75rem;
+                padding: .75rem .75rem 1.25rem;
+            }
+            #app-sidebar {
+                position: sticky;
+                top: 4rem;
+                z-index: 35;
+                width: auto;
+                margin: 0 -.75rem;
+                padding: .25rem .75rem .4rem;
+                background: #0D0D0D;
+            }
+            #primary-nav {
+                position: static;
+                top: auto;
+                display: flex;
+                flex-direction: row;
+                flex-wrap: nowrap;
+                gap: .45rem;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: .4rem;
+                white-space: nowrap;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x;
+            }
+            #primary-nav::-webkit-scrollbar { display: none; }
+            #primary-nav .nav-item {
+                flex: 0 0 auto;
+                width: auto;
+                min-height: 42px;
+                padding: .65rem .85rem;
+                white-space: nowrap;
+            }
+            #primary-nav > .my-1 { display: none; }
+            #main-content { width: 100%; }
+            .tab-content > .bg-cardbg.border,
+            .tab-content > div > .bg-cardbg.border { padding: 1rem; }
+            #tab-dashboard .stat-card { padding: 1rem; }
+            #reg-video, #attend-video { height: clamp(180px, 58vw, 260px); }
+            #tab-students-dir > div > div.overflow-x-auto { overscroll-behavior-x: contain; }
+            #tab-students-dir table { min-width: 660px; }
+            #tab-nexus-ai > div {
+                height: min(72vh, 600px);
+                height: min(72svh, 600px);
+                min-height: 420px;
+                padding: 1rem;
+            }
+            #tab-nexus-ai > div > div:first-child {
+                align-items: flex-start;
+                flex-wrap: wrap;
+                gap: .75rem;
+            }
+            #ai-user-input { min-width: 0; font-size: 16px; }
+            #ai-chat-box > div { min-width: 0; }
+            #ai-chat-box > div > div:last-child { overflow-wrap: anywhere; }
+            #auth-modal {
+                align-items: flex-start;
+                overflow-y: auto;
+                padding-top: max(1rem, env(safe-area-inset-top));
+                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            }
+            #auth-modal > div {
+                max-height: calc(100vh - 2rem);
+                max-height: calc(100dvh - 2rem);
+                overflow-y: auto;
+                margin-top: auto;
+                margin-bottom: auto;
+            }
+            #toast-container {
+                top: max(.75rem, env(safe-area-inset-top));
+                right: .75rem;
+                left: .75rem;
+            }
+            #toast-container .toast-message { width: 100%; }
+            input, select, textarea { font-size: 16px; }
+        }
+
+        @media (max-width: 480px) {
+            #app-layout { padding-right: .6rem; padding-left: .6rem; }
+            #app-sidebar { margin-right: -.6rem; margin-left: -.6rem; padding-right: .6rem; padding-left: .6rem; }
+            #reg-student-form > .grid { grid-template-columns: 1fr; }
+            #tab-nexus-ai > div {
+                height: min(70vh, 560px);
+                height: min(70svh, 560px);
+                min-height: 390px;
+            }
+            #tab-nexus-ai form button { padding-right: .9rem; padding-left: .9rem; }
+            #brand-slogan { display: none; }
+        }
+        @media (hover: none) {
+            button:not(:disabled):hover,
+            .staff-card:hover,
+            .stat-card:hover,
+            #students-table-body tr:hover,
+            .tab-content > .bg-cardbg.border:hover,
+            .tab-content > div > .bg-cardbg.border:hover {
+                transform: none;
+            }
+            .stat-card:hover .stat-icon {
+                transform: none;
+                box-shadow: none;
+            }
+            .staff-card:hover::after { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-darkbg text-gray-200">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <header class="bg-cardbg/95 backdrop-blur border-b border-borderbg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            
+            <!-- Veltrix Brand Logo Component -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('dashboard')">
+                <div class="w-14 h-10 rounded-xl bg-neutral-900 border border-gold-500/40 p-1 flex items-center justify-center shadow-lg shadow-gold-500/10 overflow-hidden">
+                    <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="w-full h-full object-contain rounded-lg">
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white flex items-center gap-1.5">
+                        VELTRI<span class="text-gold-500">X</span>
+                        <span class="text-[10px] bg-gold-500/10 text-gold-500 border border-gold-500/30 px-2 py-0.5 rounded-full font-mono font-semibold">SMART</span>
+                    </h1>
+                    <p id="brand-slogan" class="text-[10px] text-gray-400 font-medium tracking-wide">CENTRO EDUCATIVO LOS PINOS</p>
+                </div>
+            </div>
+
+            <!-- Botón de sesión (lo rellena updateAuthHeader) -->
+            <div id="auth-header-btn" class="flex items-center"></div>
+        </div>
+    </header>
+
+    <div id="app-layout" class="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 gap-6">
+
+        <!-- Navigation Sidebar -->
+        <aside id="app-sidebar" class="w-full md:w-64 flex-shrink-0">
+            <nav id="primary-nav" class="bg-cardbg border border-borderbg rounded-2xl p-3 flex flex-col gap-1.5 sticky top-20">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-chart-pie w-5 text-gold-500"></i>
+                    Panel principal
+                </button>
+                <button onclick="switchTab('facial-register')" id="nav-facial-register" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-id-card-clip w-5 text-gold-500"></i>
+                    Registro biométrico
+                </button>
+                <button onclick="switchTab('attendance-modal')" id="nav-attendance-modal" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-camera w-5 text-gold-500"></i>
+                    Pasar lista facial
+                </button>
+                <button onclick="switchTab('students-dir')" id="nav-students-dir" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-graduation-cap w-5 text-gold-500"></i>
+                    Directorio de alumnos
+                </button>
+                <button onclick="switchTab('staff')" id="nav-staff" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-user-shield w-5 text-gold-500"></i>
+                    Directores y tutores
+                </button>
+                <button onclick="switchTab('justifications')" id="nav-justifications" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-file-signature w-5 text-gold-500"></i>
+                    Justificación de faltas
+                </button>
+                
+                <div class="my-1 border-t border-borderbg"></div>
+                
+                <!-- Nexus IA navigation -->
+                <button onclick="switchTab('nexus-ai')" id="nav-nexus-ai" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left w-full border border-gold-500/20 bg-gold-500/5 text-gold-500 hover:bg-gold-500/10">
+                    <i class="fa-solid fa-robot w-5"></i>
+                    Asistente de Nexus IA
+                </button>
+                
+                <button onclick="switchTab('about')" id="nav-about" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-code-branch w-5 text-gold-500"></i>
+                    CODE NEXUS
+                </button>
+
+                <button onclick="switchTab('admin')" id="nav-admin" class="nav-item hidden flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-user-shield w-5 text-gold-500"></i>
+                    Administración
+                </button>
+            </nav>
+        </aside>
+
+        <main id="main-content" class="flex-1 min-w-0">
+
+            <!-- DASHBOARD TAB -->
+            <section id="tab-dashboard" class="tab-content space-y-6">
+                <div class="bg-gradient-to-r from-cardbg via-cardbg to-borderbg border border-borderbg rounded-2xl p-6 relative overflow-hidden glow-gold">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                        <div>
+      <div class="text-center mb-8">
+        <div class="inline-flex p-3 rounded-2xl bg-neutral-900 border border-amber-500/30 mb-4 shadow-[0_0_25px_rgba(255,215,0,0.2)]">
+          <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Veltrix Logo" class="w-32 h-20 object-contain rounded-xl" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e1e1e/ffd700?text=VELTRIX';">
+        </div>
+        <h2 class="text-2xl font-bold text-white">Veltrix Smart System</h2>
+        <p class="text-xs text-neutral-400 mt-1">Centro Educativo Los Pinos — Control de acceso</p>
+      </div>
+                        <div class="bg-darkbg/80 border border-borderbg px-4 py-2.5 rounded-xl text-center">
+                            <span class="text-[10px] text-gray-400 block font-semibold uppercase">Reloj del sistema</span>
+                            <span id="clock-display" class="font-mono text-lg font-bold text-gold-500">00:00:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-card bg-cardbg border border-borderbg p-5 rounded-2xl flex items-center gap-4">
+                        <div class="stat-icon w-12 h-12 rounded-xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center text-gold-500 text-xl">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400">Total de alumnos</p>
+                            <h3 id="stat-total-students" class="text-2xl font-bold text-white">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-cardbg border border-borderbg p-5 rounded-2xl flex items-center gap-4">
+                        <div class="stat-icon w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400">Presentes hoy</p>
+                            <h3 id="stat-present" class="text-2xl font-bold text-white">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-cardbg border border-borderbg p-5 rounded-2xl flex items-center gap-4">
+                        <div class="stat-icon w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-xl">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400">Llegadas tarde</p>
+                            <h3 id="stat-late" class="text-2xl font-bold text-white">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-cardbg border border-borderbg p-5 rounded-2xl flex items-center gap-4">
+                        <div class="stat-icon w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-xl">
+                            <i class="fa-solid fa-user-xmark"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-400">Ausentes</p>
+                            <h3 id="stat-absent" class="text-2xl font-bold text-white">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule Settings -->
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-sliders text-gold-500"></i> Tolerancias de entrada
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Hora límite para entrar a tiempo</label>
+                            <input type="time" id="time-limit-on-time" value="08:00" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Límite para registrar una llegada tarde</label>
+                            <input type="time" id="time-limit-late" value="08:20" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FACIAL REGISTER TAB -->
+            <section id="tab-facial-register" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-camera text-gold-500"></i> Registro biométrico de alumnos
+                        </h2>
+                         <p class="text-xs text-gray-400 mt-1">Capturá el descriptor biométrico del rostro. El sistema solo aceptará una coincidencia facial real.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Camera frame -->
+                        <div class="flex flex-col items-center justify-center bg-darkbg border border-borderbg rounded-2xl p-4 relative overflow-hidden min-h-[280px]">
+                            <video id="reg-video" class="w-full h-64 object-cover rounded-xl" autoplay playsinline muted></video>
+                            <div class="absolute inset-4 pointer-events-none border-2 border-dashed border-gold-500/50 rounded-xl flex items-center justify-center">
+                                <div class="scanner-line absolute w-full"></div>
+                                <span class="text-[10px] text-gold-500 font-mono bg-darkbg/90 px-2 py-1 rounded border border-gold-500/30">ÁREA FACIAL ACTIVA</span>
+                            </div>
+                            <button onclick="startCamera('reg-video')" class="mt-3 bg-borderbg hover:bg-gray-800 text-xs px-4 py-2 rounded-xl border border-gray-700 transition">
+                                <i class="fa-solid fa-arrows-rotate mr-1"></i> Reiniciar cámara
+                            </button>
+                        </div>
+
+                        <!-- Form -->
+                        <form id="student-reg-form" onsubmit="handleStudentRegister(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 mb-1">Nombre completo *</label>
+                                <input type="text" id="reg-student-name" required placeholder="Ej.: Santiago Rodríguez" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 mb-1">Cédula de identidad *</label>
+                                    <input type="text" id="reg-student-ci" required placeholder="1.234.567-8" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-300 mb-1">Grado o año *</label>
+                                    <select id="reg-student-grade" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                         <option value="7.º año">7.º año</option>
+                                         <option value="8.º año">8.º año</option>
+                                         <option value="9.º año">9.º año</option>
+                                         <option value="1.er año de EMS">1.er año de EMS</option>
+                                         <option value="2.º año de EMS">2.º año de EMS</option>
+                                         <option value="3.er año de EMS">3.er año de EMS</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                             <button id="register-face-button" type="submit" class="w-full bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-600 hover:to-amber-600 text-darkbg font-bold py-3 rounded-xl transition shadow-lg shadow-gold-500/10 flex items-center justify-center gap-2 text-xs">
+                                 <i class="fa-solid fa-fingerprint"></i> Capturar rostro y guardar alumno
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ATTENDANCE SCANNER TAB -->
+            <section id="tab-attendance-modal" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-camera text-gold-500"></i> Escáner facial de asistencia
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Colocá el rostro frente a la cámara para verificar la identidad y marcar la asistencia.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex flex-col items-center justify-center bg-darkbg border border-borderbg rounded-2xl p-4 relative overflow-hidden min-h-[280px]">
+                            <video id="attend-video" class="w-full h-64 object-cover rounded-xl" autoplay playsinline muted></video>
+                            <div class="absolute inset-4 pointer-events-none border-2 border-emerald-500/40 rounded-xl flex items-center justify-center">
+                                <div class="scanner-line absolute w-full"></div>
+                            </div>
+                            <button onclick="startCamera('attend-video')" class="mt-3 bg-borderbg hover:bg-gray-800 text-xs px-4 py-2 rounded-xl border border-gray-700 transition">
+                                <i class="fa-solid fa-arrows-rotate mr-1"></i> Iniciar cámara
+                            </button>
+                        </div>
+
+                        <div class="flex flex-col justify-center gap-4 bg-darkbg/50 border border-borderbg p-6 rounded-2xl">
+                            <div id="attendance-scan-result" class="text-center py-6">
+                                <div class="w-16 h-16 rounded-full bg-borderbg text-gray-500 flex items-center justify-center text-2xl mx-auto mb-3">
+                                    <i class="fa-solid fa-user-clock"></i>
+                                </div>
+                                <h3 class="text-sm font-bold text-gray-300">Esperando verificación facial</h3>
+                                 <p class="text-xs text-gray-500 mt-1">Se permite una entrada y una salida por día. La salida se habilita desde las 16:45; un tercer escaneo será rechazado.</p>
+                            </div>
+
+                            <button onclick="scanAttendanceNow()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 text-xs">
+                                <i class="fa-solid fa-bolt"></i> Validar asistencia ahora
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DIRECTORY TAB -->
+            <section id="tab-students-dir" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-address-book text-gold-500"></i> Directorio de alumnos
+                            </h2>
+                            <p class="text-xs text-gray-400 mt-1">Alumnado registrado en el Centro Educativo Los Pinos.</p>
+                        </div>
+                        <input type="text" id="search-student" oninput="renderStudentsTable()" placeholder="Buscar por nombre o cédula..." class="bg-darkbg border border-borderbg rounded-xl px-4 py-2 text-xs text-white w-full sm:w-64 focus:outline-none focus:border-gold-500">
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-gray-300">
+                            <thead class="bg-darkbg text-gray-400 uppercase font-semibold border-b border-borderbg">
+                                <tr>
+                                    <th class="p-3.5">Alumno</th>
+                                     <th class="p-3.5">Cédula</th>
+                                     <th class="p-3.5">Grado o año</th>
+                                    <th class="p-3.5">Estado de hoy</th>
+                                    <th class="p-3.5">Último registro</th>
+                                    <th class="p-3.5 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-table-body" class="divide-y divide-borderbg">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STAFF TAB -->
+            <section id="tab-staff" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-user-shield text-gold-500"></i> Equipo directivo, tutores y adscritos
+                            </h2>
+                            <p class="text-xs text-gray-400 mt-2 max-w-2xl">Conocé a las personas que orientan, coordinan y acompañan la vida diaria de Los Pinos. Cada referente aporta desde su área para que la comunidad educativa avance en equipo.</p>
+                        </div>
+                        <span id="staff-count" class="self-start sm:self-auto shrink-0 text-[10px] text-gold-400 bg-gold-500/10 border border-gold-500/20 px-3 py-1.5 rounded-full font-semibold">
+                            Equipo Los Pinos
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="staff-grid-cards">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- JUSTIFICATIONS TAB -->
+            <section id="tab-justifications" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-file-signature text-gold-500"></i> Portal de justificación de inasistencias
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Adjuntá el motivo médico o institucional para justificar una inasistencia.</p>
+                    </div>
+
+                    <form onsubmit="handleJustification(event)" class="space-y-4 max-w-xl">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Seleccionar alumno</label>
+                            <select id="just-student-select" required class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Detalle del certificado o de la inasistencia</label>
+                            <textarea id="just-reason" required rows="3" placeholder="Ej.: certificado médico presentado..." class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500"></textarea>
+                        </div>
+                        <button type="submit" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-6 py-2.5 rounded-xl text-xs transition">
+                            Guardar justificación
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="tab-nexus-ai" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6 flex flex-col h-[600px] glow-gold">
+                    
+                    <!-- Nexus IA Branding Banner -->
+                    <div class="mb-4 pb-4 border-b border-borderbg flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-darkbg via-cardbg to-borderbg border border-gold-500/50 p-2 flex items-center justify-center shadow-lg shadow-gold-500/10">
+                                <!-- Metallic Nexus IA Emblem SVG -->
+                                <svg viewBox="0 0 100 100" class="w-full h-full">
+                                    <path d="M20,20 L80,80 M80,20 L20,80" stroke="#FFD700" stroke-width="14" stroke-linecap="round" />
+                                    <path d="M50,15 L85,50 L50,85 L15,50 Z" fill="none" stroke="#FFE156" stroke-width="6" />
+                                    <circle cx="50" cy="50" r="10" fill="#0D0D0D" stroke="#00E5FF" stroke-width="4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
+                                    NEXUS <span class="text-gold-500">IA</span>
+                                    <span class="text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-mono">SOLUCIONES INNOVADORAS</span>
+                                </h2>
+                                <p class="text-xs text-gray-400">Asistente inteligente de soporte y resolución para Veltrix</p>
+                            </div>
+                        </div>
+                            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> IA en línea
+                        </span>
+                    </div>
+
+                    <!-- Chat Box -->
+                    <div id="ai-chat-box" class="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-gold-500 text-darkbg flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
+                                N-IA
+                            </div>
+                            <div class="bg-darkbg border border-borderbg rounded-2xl p-4 text-xs text-gray-300 max-w-xl">
+                                ¡Hola! Soy <strong>Nexus IA</strong>, el módulo inteligente integrado en Veltrix Smart System. Puedo orientarte sobre los horarios, la calibración biométrica de la cámara y la información institucional del Centro Educativo Los Pinos. ¿Qué querés consultar?
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggestion Chips -->
+                    <div class="flex items-center gap-2 overflow-x-auto pb-3 text-xs">
+                        <button onclick="askPreset('¿Cómo funciona el reconocimiento biométrico?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            ¿Cómo funciona el reconocimiento facial?
+                        </button>
+                        <button onclick="askPreset('¿Quiénes son los directores precargados?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            ¿Quiénes son las autoridades?
+                        </button>
+                        <button onclick="askPreset('¿Cómo cambio el margen de tiempo de entrada?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            ¿Cómo ajustar horarios?
+                        </button>
+                    </div>
+
+                    <!-- Input Form -->
+                    <form onsubmit="handleAiChat(event)" class="flex gap-2">
+                        <input type="text" id="ai-user-input" placeholder="Pregunta algo a Nexus IA..." required class="flex-1 bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-gold-500">
+                        <button type="submit" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-6 py-3 rounded-xl text-xs transition flex items-center gap-2">
+                            <span>Enviar</span>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ADMIN TAB -->
+            <section id="tab-admin" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <h2 class="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield text-gold-500"></i> Administración de accesos
+                    </h2>
+                    <p class="text-xs text-gray-400 mb-5">Aprobá, rechazá o promoví a las personas que se registren en el sistema. Solo un administrador puede ver esta sección.</p>
+
+                    <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-2">Solicitudes pendientes</h3>
+                    <div id="admin-pending-list" class="space-y-2 mb-6"></div>
+
+                    <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-2">Usuarios del sistema</h3>
+                    <div id="admin-staff-list" class="space-y-2"></div>
+                </div>
+            </section>
+
+            <!-- ABOUT CODE NEXUS TAB -->
+            <section id="tab-about" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="mb-6 flex items-center justify-between border-b border-borderbg pb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-code-branch text-gold-500"></i> CODE NEXUS
+                            </h2>
+                            <p class="text-xs text-gray-400 mt-1">Equipo desarrollador de Veltrix Smart System para el Centro Educativo Los Pinos.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-darkbg border border-borderbg p-5 rounded-2xl text-center hover:border-gold-500/40 transition">
+                            <div class="w-full h-48 rounded-xl bg-neutral-900 border border-gold-500/20 overflow-hidden mb-4">
+                                <img src="ChatGPT_Image_20_may_2026,_11_09_18_a.m._1790035558534.png" alt="Justin Fagundez" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="text-sm font-bold text-white">Justin Fagundez</h3>
+                            <p class="text-xs text-gold-500 font-medium">Lógica y almacenamiento local</p>
+                            <p class="text-xs text-gray-400 mt-2">Persistencia y pruebas en vivo.</p>
+                        </div>
+
+                        <div class="bg-darkbg border border-borderbg p-5 rounded-2xl text-center hover:border-gold-500/40 transition">
+                            <div class="w-full h-48 rounded-xl bg-neutral-900 border border-gold-500/20 overflow-hidden mb-4">
+                                <img src="ChatGPT_Image_20_may_2026,_11_06_01_a.m._1790035561015.png" alt="Lucas Bonette" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="text-sm font-bold text-white">Lucas Bonette</h3>
+                            <p class="text-xs text-gold-500 font-medium">Desarrollador principal</p>
+                            <p class="text-xs text-gray-400 mt-2">Arquitectura de Veltrix y algoritmo biométrico.</p>
+                        </div>
+
+                        <div class="bg-darkbg border border-borderbg p-5 rounded-2xl text-center hover:border-gold-500/40 transition">
+                            <div class="w-full h-48 rounded-xl bg-neutral-900 border border-gold-500/20 overflow-hidden mb-4">
+                                <img src="ChatGPT_Image_20_may_2026,_11_07_31_a.m._1790035563762.png" alt="Facundo Pintos" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="text-sm font-bold text-white">Facundo Pintos</h3>
+                            <p class="text-xs text-gold-500 font-medium">Diseño de UI/UX y Nexus IA</p>
+                            <p class="text-xs text-gray-400 mt-2">Soporte inteligente y diseño visual.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-cardbg border border-borderbg rounded-2xl p-6 max-w-md w-full relative glow-gold">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-xl bg-neutral-900 border border-amber-500/40 p-1 flex items-center justify-center shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+                <img src="Gemini_Generated_Image_o78q05o78q05o78q.jfif" alt="Nexus IA Logo" class="w-full h-full object-contain rounded-lg" onerror="this.onerror=null; this.src='https://placehold.co/100x100/1e1e1e/ffd700?text=NEXUS';">
+              </div>
+              <div>
+                <h3 class="font-bold text-white text-base leading-tight flex items-center gap-2">
+                  NEXUS IA
+                  <span class="px-2 py-0.5 text-[9px] rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">Asistente activo</span>
+                </h3>
+                <p class="text-xs text-neutral-400">Inteligencia artificial educativa • Centro Educativo Los Pinos</p>
+              </div>
+            </div>
+
+            <button type="button" onclick="handleGoogleLogin()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl text-xs transition mb-3">
+                <i class="fa-brands fa-google text-[#EA4335]"></i> Continuar con Google (Gmail)
+            </button>
+            <div class="flex items-center gap-3 mb-4 text-[10px] text-gray-500">
+                <span class="flex-1 h-px bg-borderbg"></span>o con usuario y contraseña<span class="flex-1 h-px bg-borderbg"></span>
+            </div>
+
+            <div id="auth-inline-msg" role="alert" class="hidden mb-4 text-xs rounded-xl px-3 py-2 border"></div>
+
+            <div class="flex gap-4 border-b border-borderbg pb-3 mb-4">
+                <button onclick="switchAuthTab('login')" id="auth-tab-login" class="text-xs font-bold text-gold-500 pb-1 border-b-2 border-gold-500">Iniciar sesión</button>
+                <button onclick="switchAuthTab('register')" id="auth-tab-register" class="text-xs font-bold text-gray-400 hover:text-white pb-1">Registrarse</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Usuario o correo</label>
+                    <input type="text" id="login-user" required placeholder="usuario o correo@gmail.com" autocomplete="username" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Contraseña</label>
+                    <input type="password" id="login-pass" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <button type="submit" class="w-full bg-gold-500 hover:bg-gold-600 text-darkbg font-bold py-2.5 rounded-xl text-xs transition">
+                    Ingresar al sistema
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" onsubmit="handleAuthRegister(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Nombre completo</label>
+                    <input type="text" id="reg-auth-name" required placeholder="Nombre del docente" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Nombre de usuario o correo</label>
+                    <input type="text" id="reg-auth-email" required autocomplete="username" placeholder="ej: jperez o jperez@gmail.com" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Contraseña</label>
+                    <input type="password" id="reg-auth-pass" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                </div>
+                <button type="submit" class="w-full bg-gold-500 hover:bg-gold-600 text-darkbg font-bold py-2.5 rounded-xl text-xs transition">
+                    Crear cuenta de usuario
+                </button>
+            </form>
+            <p id="auth-mode-note" class="text-[10px] text-gray-500 mt-4 text-center"></p>
+        </div>
+    </div>
+
+    <script>
+        // Staff database
+        const PRELOADED_STAFF = [
+            { name: "Pedro Presno", role: "Director ejecutivo", dept: "Dirección general", icon: "fa-user-tie" },
+            { name: "María", role: "Directora del Liceo Técnico", dept: "Dirección académica", icon: "fa-graduation-cap" },
+            { name: "José Marcos", role: "Director de orientación", dept: "Orientación estudiantil", icon: "fa-compass" },
+            { name: "Alfonso Álvarez", role: "Tutor de 1.er año de EMS", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
+            { name: "Juan Trumbotti", role: "Adscrito de 8.º año", dept: "Adscripción", icon: "fa-clipboard-user" },
+            { name: "Agustín Curbelo", role: "Tutor de 9.º año", dept: "Tutoría de educación media", icon: "fa-user-gear" },
+            { name: "Juan Martín", role: "Adscrito de 7.º año", dept: "Adscripción", icon: "fa-clipboard-list" }
+        ];
+
+        // ============================================================
+        // BASE DE DATOS + LOGIN (Firebase: Authentication + Firestore)
+        // Pegá acá los datos de tu proyecto (Configuración del proyecto > Tus apps > Web).
+        // Si queda vacío, el sistema funciona en MODO LOCAL (solo este navegador).
+        // ============================================================
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDpERxYfwIRRQ5FrqJ0wZVk9bw4tXOYy4Y",
+            authDomain: "veltrix-c7cef.firebaseapp.com",
+            projectId: "veltrix-c7cef",
+            appId: "1:1076314876092:web:39c7c35ace356c2d26c8b9"
+        };
+        const CLOUD_ENABLED = !!FIREBASE_CONFIG.apiKey;
+
+        // System state variables
+        let students = JSON.parse(localStorage.getItem('veltrix_students') || '[]');
+        let currentUser = CLOUD_ENABLED ? null : JSON.parse(localStorage.getItem('veltrix_current_user') || 'null');
+        let registeredUsers = JSON.parse(localStorage.getItem('veltrix_users') || '[]');
+        let activeStream = null;
+        let faceModelsPromise = null;
+        const metricAnimationFrames = new WeakMap();
+
+        /*
+         * A pixel average is not a facial identity. It changes with lighting and
+         * often makes two different people look "close". face-api.js creates a
+         * 128-dimensional face descriptor after detecting facial landmarks.
+         * A lower distance means a more likely identity match.
+         */
+        const FACE_MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+        const FACE_MATCH_THRESHOLD = 0.48;
+        const FACE_DESCRIPTOR_LENGTH = 128;
+        const DAILY_EXIT_TIME = '16:45';
+
+        window.onload = function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderStaff();
+            renderStudentsTable();
+            updateDashboardMetrics();
+            initAuthUi();
+            updateAuthHeader();
+            initCloud();
+            populateJustificationSelect();
+            switchTab('dashboard');
+            ensureFaceModels().catch(() => {
+                showToast("No se pudo cargar el modelo biométrico. Revisá tu conexión a Internet.", "error");
+            });
+        };
+
+        function updateClock() {
+            const now = new Date();
+            const clockEl = document.getElementById('clock-display');
+            if(clockEl) clockEl.innerText = now.toTimeString().split(' ')[0];
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' :
+                            type === 'error' ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-gold-500/20 border-gold-500/40 text-gold-400';
+            
+            toast.className = `toast-message px-4 py-3 rounded-xl border ${bgClass} shadow-xl text-xs font-semibold backdrop-blur transition-all pointer-events-auto flex items-center gap-2`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${message}`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-gold-500', 'text-darkbg', 'font-bold');
+            });
+
+            const activeContent = document.getElementById(`tab-${tabId}`);
+            if (activeContent) activeContent.classList.remove('hidden');
+
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.add('bg-gold-500', 'text-darkbg', 'font-bold');
+            }
+
+            if (tabId === 'facial-register') startCamera('reg-video');
+            else if (tabId === 'attendance-modal') startCamera('attend-video');
+            else stopCamera();
+
+            if (tabId === 'admin') renderAdminPanel();
+        }
+
+        async function startCamera(videoId) {
+            stopCamera();
+            const video = document.getElementById(videoId);
+            if (!video) return;
+
+            try {
+                activeStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                video.srcObject = activeStream;
+            } catch (err) {
+                showToast("No se pudo acceder a la cámara web.", "error");
+            }
+        }
+
+        function stopCamera() {
+            if (activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
+                activeStream = null;
+            }
+        }
+
+        async function ensureFaceModels() {
+            if (window.faceapi && faceModelsPromise) return faceModelsPromise;
+            if (!window.faceapi) {
+                throw new Error('La librería biométrica todavía no está disponible.');
+            }
+
+            faceModelsPromise = Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
+            ]).then(() => true).catch(error => {
+                faceModelsPromise = null;
+                throw error;
+            });
+
+            return faceModelsPromise;
+        }
+
+        function setFaceButtonBusy(isBusy) {
+            const button = document.getElementById('register-face-button');
+            if (!button) return;
+            button.disabled = isBusy;
+            button.classList.toggle('opacity-60', isBusy);
+            button.classList.toggle('cursor-not-allowed', isBusy);
+            button.innerHTML = isBusy
+                ? '<i class="fa-solid fa-spinner fa-spin"></i> Analizando rostro...'
+                : '<i class="fa-solid fa-fingerprint"></i> Capturar rostro y guardar alumno';
+        }
+
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function normalizeDescriptor(values) {
+            const norm = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0)) || 1;
+            return values.map(value => value / norm);
+        }
+
+        async function extractFaceDescriptorFromVideo(videoId) {
+            const video = document.getElementById(videoId);
+            if (!video || !video.videoWidth) {
+                throw new Error("La cámara todavía no está lista. Esperá un momento y volvé a intentar.");
+            }
+
+            await ensureFaceModels();
+
+            const detections = await faceapi
+                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({
+                    inputSize: 416,
+                    scoreThreshold: 0.6
+                }))
+                .withFaceLandmarks()
+                .withFaceDescriptors();
+
+            if (detections.length === 0) {
+                throw new Error("No se detectó ningún rostro. Centrá la cara, mejorá la iluminación y mirá a la cámara.");
+            }
+            if (detections.length > 1) {
+                throw new Error("Se detectaron varios rostros. Debe haber una sola persona frente a la cámara.");
+            }
+
+            const detection = detections[0];
+            const box = detection.detection.box;
+            const faceAreaRatio = (box.width * box.height) / (video.videoWidth * video.videoHeight);
+            if (detection.detection.score < 0.7 || faceAreaRatio < 0.05) {
+                throw new Error("El rostro se ve pequeño o poco claro. Acercate y mirá de frente.");
+            }
+
+            const descriptor = Array.from(detection.descriptor);
+            if (descriptor.length !== FACE_DESCRIPTOR_LENGTH) {
+                throw new Error("No se pudo generar un descriptor facial válido.");
+            }
+            return descriptor;
+        }
+
+        async function captureStableFaceDescriptor(videoId, sampleCount = 3) {
+            const samples = [];
+            for (let i = 0; i < sampleCount; i++) {
+                samples.push(await extractFaceDescriptorFromVideo(videoId));
+                if (i < sampleCount - 1) await wait(180);
+            }
+
+            const averaged = samples[0].map((_, index) =>
+                samples.reduce((sum, sample) => sum + sample[index], 0) / samples.length
+            );
+            return normalizeDescriptor(averaged);
+        }
+
+        function calculateVectorDistance(v1, v2) {
+            if (!Array.isArray(v1) || !Array.isArray(v2) || v1.length !== v2.length) return Infinity;
+            let sum = 0;
+            for (let i = 0; i < v1.length; i++) {
+                sum += Math.pow(v1[i] - v2[i], 2);
+            }
+            return Math.sqrt(sum);
+        }
+
+        function getStoredFaceDescriptor(student) {
+            const descriptor = student?.faceDescriptor || student?.signature;
+            return Array.isArray(descriptor) && descriptor.length === FACE_DESCRIPTOR_LENGTH
+                ? descriptor
+                : null;
+        }
+
+        function formatGrade(grade) {
+            const legacyGrades = {
+                '7mo': '7.º año',
+                '8vo': '8.º año',
+                '9no': '9.º año',
+                '1er EMS': '1.er año de EMS',
+                '2do EMS': '2.º año de EMS',
+                '3er EMS': '3.er año de EMS'
+            };
+            return legacyGrades[grade] || grade || 'Sin especificar';
+        }
+
+        function formatAttendanceStatus(status) {
+            if (status === 'Llegada Tarde') return 'Llegada tarde';
+            if (status === 'Expulsado') return 'Expulsado';
+            return status || 'Sin registros';
+        }
+
+        function getLocalDateKey(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        async function handleStudentRegister(e) {
+            e.preventDefault();
+            if (!requireCanManageStudents()) return;
+            if (document.getElementById('register-face-button')?.disabled) return;
+
+            const name = document.getElementById('reg-student-name').value.trim();
+            const ci = document.getElementById('reg-student-ci').value.trim();
+            const grade = document.getElementById('reg-student-grade').value;
+            const studentWithSameCi = students.find(s => s.ci === ci);
+
+            if (studentWithSameCi && getStoredFaceDescriptor(studentWithSameCi)) {
+                showToast("Esta Cédula ya está registrada.", "error");
+                return;
+            }
+
+            setFaceButtonBusy(true);
+            try {
+                const newDescriptor = await captureStableFaceDescriptor('reg-video');
+                const duplicateFace = students.find(student => {
+                    const storedDescriptor = getStoredFaceDescriptor(student);
+                    return storedDescriptor &&
+                        calculateVectorDistance(newDescriptor, storedDescriptor) <= FACE_MATCH_THRESHOLD;
+                });
+
+                if (duplicateFace) {
+                    showToast(`El rostro ingresado ya está registrado como ${duplicateFace.name}.`, "error");
+                    return;
+                }
+
+                if (studentWithSameCi) {
+                    // Upgrade records created with the old 32-pixel signature.
+                    studentWithSameCi.name = name;
+                    studentWithSameCi.grade = grade;
+                    studentWithSameCi.faceDescriptor = newDescriptor;
+                    studentWithSameCi.signature = newDescriptor;
+                    studentWithSameCi.biometricVersion = 'face-api-128-v1';
+                    showToast(`Biometría de ${name} actualizada correctamente.`, "success");
+                } else {
+                    students.push({
+                        id: 'STU-' + Date.now(),
+                        name,
+                        ci,
+                        grade,
+                        faceDescriptor: newDescriptor,
+                        // Keep signature for compatibility with old saved records.
+                        signature: newDescriptor,
+                        biometricVersion: 'face-api-128-v1',
+                        status: 'Ausente',
+                        lastRecord: 'Sin registros'
+                    });
+                    showToast(`¡Alumno ${name} registrado con éxito!`, "success");
+                }
+                persistStudents();
+
+                document.getElementById('student-reg-form').reset();
+                renderStudentsTable();
+                updateDashboardMetrics();
+                populateJustificationSelect();
+                switchTab('students-dir');
+            } catch (error) {
+                showToast(error.message || "No se pudo verificar el rostro.", "error");
+            } finally {
+                setFaceButtonBusy(false);
+            }
+        }
+
+        async function scanAttendanceNow() {
+            if (!requireCanManageStudents()) return;
+            if (students.length === 0) {
+                showToast("No hay alumnos registrados para escanear.", "error");
+                return;
+            }
+
+            let currentDescriptor;
+            try {
+                currentDescriptor = await captureStableFaceDescriptor('attend-video');
+            } catch (error) {
+                showToast(error.message || "No se pudo verificar el rostro.", "error");
+                return;
+            }
+
+            const onTimeLimit = document.getElementById('time-limit-on-time').value || "08:00";
+            const lateLimit = document.getElementById('time-limit-late').value || "08:20";
+
+            const now = new Date();
+            const currentHours = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+            const todayKey = getLocalDateKey(now);
+
+            let bestMatch = null;
+            let lowestDistance = Infinity;
+
+            students.forEach(student => {
+                const storedDescriptor = getStoredFaceDescriptor(student);
+                if (!storedDescriptor) return;
+                const dist = calculateVectorDistance(currentDescriptor, storedDescriptor);
+                if (dist < lowestDistance) {
+                    lowestDistance = dist;
+                    bestMatch = student;
+                }
+            });
+
+            // Never identify the closest person without a sufficiently close match.
+            if (!bestMatch || lowestDistance > FACE_MATCH_THRESHOLD) {
+                const resultBox = document.getElementById('attendance-scan-result');
+                resultBox.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-rose-500/30">
+                        <i class="fa-solid fa-user-slash"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white">Rostro no reconocido</h3>
+                    <p class="text-xs text-gray-400 mt-1">No se marcó asistencia porque no existe una coincidencia facial segura.</p>
+                `;
+                showToast("Rostro no reconocido. No se registró asistencia.", "error");
+                return;
+            }
+
+            if (bestMatch.status === 'Expulsado') {
+                const resultBox = document.getElementById('attendance-scan-result');
+                resultBox.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-gray-500/10 text-gray-300 flex items-center justify-center text-2xl mx-auto mb-3 border border-gray-500/30">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white">${escapeHtml(bestMatch.name)} está expulsado</h3>
+                    <p class="text-xs text-gray-400 mt-1">No se registró asistencia porque este alumno está expulsado del sistema.</p>
+                `;
+                showToast(`${bestMatch.name} está expulsado. No se registró asistencia.`, "error");
+                return;
+            }
+
+            const todayScans = (Array.isArray(bestMatch.attendanceScans) ? bestMatch.attendanceScans : [])
+                .filter(scan => scan && scan.date === todayKey);
+
+            if (todayScans.length >= 2) {
+                const resultBox = document.getElementById('attendance-scan-result');
+                resultBox.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-rose-500/30">
+                        <i class="fa-solid fa-repeat"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white">Escaneo ya realizado: rostro repetido</h3>
+                    <p class="text-xs text-gray-400 mt-1">${bestMatch.name} ya registró entrada y salida hoy. No se agregó otro registro.</p>
+                `;
+                showToast(`Escaneo ya realizado: rostro repetido. ${bestMatch.name} ya tiene una entrada y una salida registradas hoy.`, "error");
+                return;
+            }
+
+            if (todayScans.length === 1 && currentHours < DAILY_EXIT_TIME) {
+                const resultBox = document.getElementById('attendance-scan-result');
+                resultBox.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-500/30">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white">Salida aún no habilitada</h3>
+                    <p class="text-xs text-gray-400 mt-1">La salida se puede registrar a partir de las ${DAILY_EXIT_TIME} (4:45 p. m.). Este escaneo no se guardó.</p>
+                `;
+                showToast(`La salida se habilita a partir de las ${DAILY_EXIT_TIME} (4:45 p. m.).`, "error");
+                return;
+            }
+
+            const scanType = todayScans.length === 0 ? 'Entrada' : 'Salida';
+            let newStatus = 'Presente';
+            if (currentHours > lateLimit || currentHours > onTimeLimit) {
+                newStatus = 'Llegada Tarde';
+            }
+
+            if (!Array.isArray(bestMatch.attendanceScans)) bestMatch.attendanceScans = [];
+            bestMatch.attendanceScans.push({
+                date: todayKey,
+                time: currentHours,
+                type: scanType
+            });
+            if (scanType === 'Entrada') bestMatch.status = newStatus;
+            bestMatch.lastRecord = `${now.toLocaleDateString()} ${currentHours} (${scanType})`;
+
+            persistStudents();
+
+            const resultBox = document.getElementById('attendance-scan-result');
+            const badgeColor = newStatus === 'Presente' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+
+            resultBox.innerHTML = `
+                <div class="w-16 h-16 rounded-full ${badgeColor} flex items-center justify-center text-2xl mx-auto mb-3 border">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <h3 class="text-base font-bold text-white">${bestMatch.name}</h3>
+                <p class="text-xs text-gray-400">Cédula: ${bestMatch.ci} · Grado o año: ${formatGrade(bestMatch.grade)}</p>
+                <div class="mt-3 inline-block px-3 py-1 rounded-full text-xs font-bold border ${badgeColor}">
+                    ${scanType} registrada · ${formatAttendanceStatus(bestMatch.status)} (${currentHours})
+                </div>
+            `;
+
+            showToast(`${scanType} registrada: ${bestMatch.name} - ${currentHours}`, "success");
+            renderStudentsTable();
+            updateDashboardMetrics();
+        }
+
+        function renderStudentsTable() {
+            const tbody = document.getElementById('students-table-body');
+            const searchTerm = (document.getElementById('search-student')?.value || '').toLowerCase();
+
+            const filtered = students.filter(s => s.name.toLowerCase().includes(searchTerm) || s.ci.includes(searchTerm));
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-6 text-center text-gray-500">
+                            No hay alumnos registrados. Usá la pestaña «Registro biométrico» para agregar uno.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(s => {
+                const statusBadge = s.status === 'Presente' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    s.status === 'Llegada Tarde' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                    s.status === 'Justificado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                    s.status === 'Expulsado' ? 'bg-gray-500/10 text-gray-300 border-gray-500/30' :
+                                    'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                const expelled = s.status === 'Expulsado';
+
+                return `
+                    <tr class="hover:bg-borderbg/50 transition ${expelled ? 'opacity-60' : ''}">
+                        <td class="p-3.5 font-semibold text-white">${escapeHtml(s.name)}</td>
+                        <td class="p-3.5 text-gray-400 font-mono">${escapeHtml(s.ci)}</td>
+                        <td class="p-3.5 text-gray-400">${formatGrade(s.grade)}</td>
+                        <td class="p-3.5">
+                            <span class="px-2.5 py-1 rounded-full text-[11px] border font-medium ${statusBadge}">
+                                ${formatAttendanceStatus(s.status)}
+                            </span>
+                        </td>
+                        <td class="p-3.5 text-gray-400">${s.lastRecord}</td>
+                        <td class="p-3.5 text-right flex items-center justify-end gap-2">
+                            <button onclick="toggleStudentStatus('${s.id}')" class="p-1.5 rounded bg-borderbg hover:bg-gray-700 text-gray-300 transition" title="Cambiar Estado">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </button>
+                            ${expelled
+                                ? `<button onclick="reinstateStudent('${s.id}')" class="p-1.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition" title="Reincorporar">
+                                       <i class="fa-solid fa-rotate-left"></i>
+                                   </button>`
+                                : `<button onclick="expelStudent('${s.id}')" class="p-1.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition" title="Expulsar">
+                                       <i class="fa-solid fa-user-slash"></i>
+                                   </button>`}
+                            <button onclick="deleteStudent('${s.id}')" class="p-1.5 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition" title="Eliminar">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function expelStudent(id) {
+            if (!requireCanExpel()) return;
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            if (!confirm(`¿Confirmás expulsar a ${student.name}? No va a poder registrar asistencia hasta que lo reincorpores.`)) return;
+
+            student.status = 'Expulsado';
+            student.lastRecord = `Expulsado: ${new Date().toLocaleDateString()}`;
+            persistStudents();
+            renderStudentsTable();
+            updateDashboardMetrics();
+            populateJustificationSelect();
+            showToast(`${student.name} fue expulsado del sistema.`);
+        }
+
+        function reinstateStudent(id) {
+            if (!requireCanExpel()) return;
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+
+            student.status = 'Ausente';
+            student.lastRecord = `Reincorporado: ${new Date().toLocaleDateString()}`;
+            persistStudents();
+            renderStudentsTable();
+            updateDashboardMetrics();
+            populateJustificationSelect();
+            showToast(`${student.name} fue reincorporado.`, 'success');
+        }
+
+        function toggleStudentStatus(id) {
+            if (!requireCanManageStudents()) return;
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            if (student.status === 'Expulsado') {
+                showToast('Este alumno está expulsado. Reincorporalo primero para cambiar su estado.', 'error');
+                return;
+            }
+
+            const statuses = ['Ausente', 'Presente', 'Llegada Tarde', 'Justificado'];
+            const currentIdx = statuses.indexOf(student.status);
+            student.status = statuses[(currentIdx + 1) % statuses.length];
+            student.lastRecord = `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0,5)}`;
+
+            persistStudents();
+            renderStudentsTable();
+            updateDashboardMetrics();
+            showToast(`Estado de ${student.name} cambiado a ${formatAttendanceStatus(student.status)}`);
+        }
+
+        function deleteStudent(id) {
+            if (!requireCanManageStudents()) return;
+            students = students.filter(s => s.id !== id);
+            persistStudents();
+            renderStudentsTable();
+            updateDashboardMetrics();
+            populateJustificationSelect();
+            showToast("Alumno eliminado del sistema.");
+        }
+
+        function renderStaff() {
+            const grid = document.getElementById('staff-grid-cards');
+            if (!grid) return;
+
+            const countBadge = document.getElementById('staff-count');
+            if (countBadge) {
+                countBadge.innerHTML = `<i class="fa-solid fa-users mr-1"></i> ${PRELOADED_STAFF.length} integrantes`;
+            }
+
+            grid.innerHTML = PRELOADED_STAFF.map(st => `
+                <article class="staff-card cursor-pointer bg-darkbg border border-borderbg p-5 rounded-2xl"
+                    role="button" tabindex="0" aria-expanded="false" aria-label="Ver detalles de ${st.name}"
+                    onclick="toggleStaffBubble(this)" onkeydown="handleStaffCardKeydown(event, this)">
+                    <div class="relative z-10 flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gold-500/10 border border-gold-500/20 text-gold-500 flex items-center justify-center text-lg flex-shrink-0">
+                            <i class="fa-solid ${st.icon}"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-white">${st.name}</h3>
+                            <p class="text-xs text-gold-400 font-medium mt-1">${st.role}</p>
+                        </div>
+                    </div>
+                    <div class="relative z-10 mt-4 pt-3 border-t border-borderbg flex items-center gap-2 text-xs text-gray-400">
+                        <i class="fa-solid fa-location-dot text-gold-500/80"></i>
+                        <span>${st.dept}</span>
+                    </div>
+                    <div class="relative z-10 mt-3 text-[10px] text-gray-500 flex items-center gap-1.5">
+                        <i class="fa-solid fa-comment-dots text-gold-500/80"></i>
+                        <span>Haz clic para ver los detalles</span>
+                        <i class="fa-solid fa-chevron-down ml-auto text-[9px]"></i>
+                    </div>
+                    <div class="staff-speech-bubble hidden relative z-10 mt-4" role="status" aria-live="polite">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gold-400 mb-2">
+                            <i class="fa-solid fa-quote-left mr-1"></i> Perfil de ${st.name}
+                        </p>
+                        <p class="text-xs text-gray-200 leading-relaxed"><span class="text-gray-500">Cargo:</span> ${st.role}</p>
+                        <p class="text-xs text-gray-200 leading-relaxed mt-1"><span class="text-gray-500">Área:</span> ${st.dept}</p>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function toggleStaffBubble(card) {
+            if (!card) return;
+            const bubble = card.querySelector('.staff-speech-bubble');
+            if (!bubble) return;
+            const shouldOpen = bubble.classList.contains('hidden');
+
+            document.querySelectorAll('.staff-card').forEach(otherCard => {
+                otherCard.classList.remove('is-open');
+                otherCard.setAttribute('aria-expanded', 'false');
+                otherCard.querySelector('.staff-speech-bubble')?.classList.add('hidden');
+            });
+
+            if (shouldOpen) {
+                bubble.classList.remove('hidden');
+                card.classList.add('is-open');
+                card.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function handleStaffCardKeydown(event, card) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleStaffBubble(card);
+            } else if (event.key === 'Escape' && card.getAttribute('aria-expanded') === 'true') {
+                event.preventDefault();
+                toggleStaffBubble(card);
+                card.focus();
+            }
+        }
+
+        function animateMetric(element, targetValue) {
+            if (!element) return;
+            const target = Number(targetValue) || 0;
+            const previousFrame = metricAnimationFrames.get(element);
+            if (previousFrame) cancelAnimationFrame(previousFrame);
+
+            const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion || typeof requestAnimationFrame !== 'function') {
+                element.innerText = target;
+                return;
+            }
+
+            const startValue = Number.parseInt(element.innerText, 10) || 0;
+            const duration = 650;
+            let startTime = null;
+
+            const tick = timestamp => {
+                if (startTime === null) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const easedProgress = 1 - Math.pow(1 - progress, 3);
+                element.innerText = Math.round(startValue + (target - startValue) * easedProgress);
+
+                if (progress < 1) {
+                    metricAnimationFrames.set(element, requestAnimationFrame(tick));
+                } else {
+                    metricAnimationFrames.delete(element);
+                }
+            };
+
+            metricAnimationFrames.set(element, requestAnimationFrame(tick));
+        }
+
+        function updateDashboardMetrics() {
+            animateMetric(document.getElementById('stat-total-students'), students.length);
+            animateMetric(document.getElementById('stat-present'), students.filter(s => s.status === 'Presente').length);
+            animateMetric(document.getElementById('stat-late'), students.filter(s => s.status === 'Llegada Tarde').length);
+            animateMetric(document.getElementById('stat-absent'), students.filter(s => s.status === 'Ausente').length);
+        }
+
+        function populateJustificationSelect() {
+            const select = document.getElementById('just-student-select');
+            if (!select) return;
+
+            if (students.length === 0) {
+                select.innerHTML = `<option value="">No hay alumnos registrados</option>`;
+                return;
+            }
+
+            select.innerHTML = students.map(s => `
+                <option value="${s.id}">${s.name} (${s.ci}) · Estado actual: ${formatAttendanceStatus(s.status)}</option>
+            `).join('');
+        }
+
+        function handleJustification(e) {
+            e.preventDefault();
+            if (!requireCanManageStudents()) return;
+            const id = document.getElementById('just-student-select').value;
+            const student = students.find(s => s.id === id);
+
+            if (student) {
+                student.status = 'Justificado';
+                student.lastRecord = `Justificado: ${new Date().toLocaleDateString()}`;
+                persistStudents();
+                renderStudentsTable();
+                updateDashboardMetrics();
+                showToast(`Inasistencia justificada para ${student.name}`, "success");
+            }
+        }
+
+        function handleAiChat(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-user-input');
+            const query = input.value.trim();
+            if (!query) return;
+
+            appendAiMessage(query, 'user');
+            input.value = '';
+
+            setTimeout(() => {
+                const response = generateAiResponse(query);
+                appendAiMessage(response, 'ai');
+            }, 500);
+        }
+
+        function askPreset(question) {
+            appendAiMessage(question, 'user');
+            setTimeout(() => {
+                const response = generateAiResponse(question);
+                appendAiMessage(response, 'ai');
+            }, 500);
+        }
+
+        function appendAiMessage(text, sender) {
+            const box = document.getElementById('ai-chat-box');
+            const isUser = sender === 'user';
+
+            const msgHtml = `
+                <div class="flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}">
+                    <div class="w-8 h-8 rounded-lg ${isUser ? 'bg-borderbg text-white' : 'bg-gold-500 text-darkbg'} flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                        ${isUser ? 'TÚ' : 'N-IA'}
+                    </div>
+                    <div class="${isUser ? 'bg-gold-500/10 border-gold-500/30 text-white' : 'bg-darkbg border-borderbg text-gray-300'} border rounded-2xl p-4 text-xs max-w-xl">
+                        ${text}
+                    </div>
+                </div>
+            `;
+            box.insertAdjacentHTML('beforeend', msgHtml);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function generateAiResponse(q) {
+            const query = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (query.includes('biometrico') || query.includes('facial') || query.includes('rostro') || query.includes('registro')) {
+                return "El escaneo biométrico Veltrix utiliza la cámara web para aislar una región central de interés (ROI) de la cara. Extrae un vector de características normalizado para diferenciar con precisión a los alumnos y evitar registros duplicados.";
+            }
+            if (query.includes('horario') || query.includes('tolerancia') || query.includes('tarde')) {
+                return "Podés ajustar los límites de entrada en el Panel principal. Los valores iniciales son las 08:00 para entrar a tiempo y las 08:20 como límite de llegada tarde.";
+            }
+            if (query.includes('director') || query.includes('autoridad') || query.includes('pedro')) {
+                return "El equipo de Los Pinos incluye a Pedro Presno, director ejecutivo; María, directora del Liceo Técnico; José Marcos, director de orientación; y los tutores y adscritos que figuran en esta sección.";
+            }
+            return "Soy Nexus IA y puedo ayudarte con dudas técnicas, el registro de asistencia y las funciones del sistema Veltrix.";
+        }
+
+        function updateAuthHeader() {
+            const container = document.getElementById('auth-header-btn');
+            if (currentUser) {
+                const roleTag = isAdminUser()
+                    ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold-500/10 text-gold-500 border border-gold-500/30 align-middle">ADMIN</span>' : '';
+                container.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-gray-300 font-semibold hidden sm:inline"><i class="fa-solid fa-circle-user text-gold-500 mr-1"></i> ${escapeHtml(currentUser.name)}${roleTag}</span>
+                        <button onclick="handleLogout()" class="bg-borderbg hover:bg-rose-500/20 hover:text-rose-400 text-xs px-3 py-1.5 rounded-xl border border-borderbg transition">
+                            Salir
+                        </button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button onclick="openAuthModal()" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold text-xs px-4 py-1.5 rounded-xl transition">
+                        Iniciar Sesión
+                    </button>
+                `;
+            }
+            applyAdminNav();
+        }
+
+        function openAuthModal() {
+            clearAuthMsg();
+            document.getElementById('auth-modal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function switchAuthTab(tab) {
+            clearAuthMsg();
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            const loginTab = document.getElementById('auth-tab-login');
+            const regTab = document.getElementById('auth-tab-register');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+                loginTab.className = "text-xs font-bold text-gold-500 pb-1 border-b-2 border-gold-500";
+                regTab.className = "text-xs font-bold text-gray-400 hover:text-white pb-1";
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                regTab.className = "text-xs font-bold text-gold-500 pb-1 border-b-2 border-gold-500";
+                loginTab.className = "text-xs font-bold text-gray-400 hover:text-white pb-1";
+            }
+        }
+
+        // ---------- Utilidades ----------
+        const USERNAME_DOMAIN = 'usuarios.veltrix.app';
+        function escapeHtml(t) {
+            return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        // "jperez" -> jperez@usuarios.veltrix.app ; un correo real se usa tal cual
+        function toEmail(id) {
+            id = id.trim().toLowerCase();
+            return id.includes('@') ? id : `${id}@${USERNAME_DOMAIN}`;
+        }
+        function validLoginId(id) {
+            return id.includes('@') || /^[a-z0-9._-]{3,30}$/i.test(id);
+        }
+        async function sha256(text) {
+            if (!(window.crypto && crypto.subtle)) return 'plain:' + text;
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('veltrix|' + text));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        function authErrorMessage(err) {
+            const map = {
+                'auth/invalid-credential': 'Usuario o contraseña incorrectos.',
+                'auth/user-not-found': 'Usuario o contraseña incorrectos.',
+                'auth/wrong-password': 'Usuario o contraseña incorrectos.',
+                'auth/email-already-in-use': 'Ese usuario o correo ya está registrado.',
+                'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+                'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.',
+                'auth/popup-blocked': 'El navegador bloqueó la ventana de Google. Permití los pop-ups.',
+                'auth/unauthorized-domain': 'Este dominio no está autorizado en Firebase (Authentication > Configuración > Dominios autorizados).',
+                'auth/operation-not-allowed': 'Ese método de acceso no está activado en Firebase (Authentication > Sign-in method).',
+                'auth/too-many-requests': 'Demasiados intentos. Esperá unos minutos.',
+                'auth/network-request-failed': 'Sin conexión con el servidor.',
+                'auth/operation-not-supported-in-this-environment': 'Google no funciona abriendo el archivo con doble clic. Publicá la página por https:// o abrila desde localhost.',
+                'auth/invalid-api-key': 'La apiKey de FIREBASE_CONFIG no es válida.',
+                'auth/configuration-not-found': 'Falta activar Authentication en tu proyecto de Firebase.',
+                'auth/cancelled-popup-request': 'Se canceló la ventana de Google. Probá de nuevo.'
+            };
+            return map[err?.code] || 'No se pudo completar el acceso (' + (err?.code || err?.message || 'error') + ').';
+        }
+        function authMsg(text, type = 'error') {
+            const el = document.getElementById('auth-inline-msg');
+            if (el) {
+                el.textContent = text;
+                el.className = 'mb-4 text-xs rounded-xl px-3 py-2 border ' + (type === 'error'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    : 'bg-gold-500/10 border-gold-500/30 text-gold-400');
+            }
+            showToast(text, type === 'error' ? 'error' : 'info');
+        }
+        function clearAuthMsg() {
+            const el = document.getElementById('auth-inline-msg');
+            if (el) el.className = 'hidden';
+        }
+        function initAuthUi() {
+            const note = document.getElementById('auth-mode-note');
+            if (note) note.textContent = CLOUD_ENABLED
+                ? 'Los datos se guardan en la base de datos en la nube (Firestore). Las cuentas nuevas quedan pendientes hasta que un administrador las apruebe.'
+                : 'Modo local: los datos y cuentas se guardan solo en este navegador. Las cuentas nuevas quedan pendientes hasta que un administrador las apruebe.';
+            if (!CLOUD_ENABLED) migrateLocalUsers();
+        }
+
+        // ---------- Roles (los asigna el administrador) ----------
+        // 'staff' se deja como alias de 'docente' para no romper cuentas creadas antes de esta versión.
+        const ROLES = {
+            admin:       { label: 'Administrador',   manageUsers: true,  manageStudents: true,  expel: true  },
+            coordinador: { label: 'Coordinador/a',    manageUsers: false, manageStudents: true,  expel: true  },
+            docente:     { label: 'Docente/Adscripto', manageUsers: false, manageStudents: true,  expel: false },
+            staff:       { label: 'Docente/Adscripto', manageUsers: false, manageStudents: true,  expel: false },
+            lector:      { label: 'Solo lectura',      manageUsers: false, manageStudents: false, expel: false }
+        };
+        function roleInfo(role) {
+            return ROLES[role] || ROLES.docente;
+        }
+        function roleLabel(role) {
+            return roleInfo(role).label;
+        }
+
+        // ---------- Permisos: sesión y rol ----------
+        function isApprovedUser() {
+            if (!currentUser) return false;
+            return currentUser.status === undefined || currentUser.status === 'approved';
+        }
+        function isAdminUser() {
+            return !!currentUser && roleInfo(currentUser.role).manageUsers;
+        }
+        function canManageStudents() {
+            return isApprovedUser() && roleInfo(currentUser.role).manageStudents;
+        }
+        function canExpelStudents() {
+            return isApprovedUser() && roleInfo(currentUser.role).expel;
+        }
+        function requireApprovedUser() {
+            if (isApprovedUser()) return true;
+            if (!currentUser) {
+                showToast('Iniciá sesión con una cuenta aprobada para hacer cambios.', 'error');
+                openAuthModal();
+            } else {
+                showToast('Tu cuenta todavía no fue aprobada por un administrador.', 'error');
+            }
+            return false;
+        }
+        function requireCanManageStudents() {
+            if (!requireApprovedUser()) return false;
+            if (!canManageStudents()) {
+                showToast(`Tu rol (${roleLabel(currentUser.role)}) no tiene permiso para modificar alumnos.`, 'error');
+                return false;
+            }
+            return true;
+        }
+        function requireCanExpel() {
+            if (!requireApprovedUser()) return false;
+            if (!canExpelStudents()) {
+                showToast(`Tu rol (${roleLabel(currentUser.role)}) no tiene permiso para expulsar alumnos.`, 'error');
+                return false;
+            }
+            return true;
+        }
+        function applyAdminNav() {
+            const navAdmin = document.getElementById('nav-admin');
+            if (!navAdmin) return;
+            if (isAdminUser()) {
+                navAdmin.classList.remove('hidden');
+            } else {
+                navAdmin.classList.add('hidden');
+                const tabAdmin = document.getElementById('tab-admin');
+                if (tabAdmin && !tabAdmin.classList.contains('hidden')) switchTab('dashboard');
+            }
+        }
+
+        // Da de alta role/status a cuentas locales creadas antes de esta versión,
+        // y asegura que siempre exista al menos un administrador local.
+        function migrateLocalUsers() {
+            let changed = false;
+            registeredUsers.forEach(u => {
+                if (!u.status) { u.status = 'approved'; changed = true; }
+                if (!u.role) { u.role = 'staff'; changed = true; }
+            });
+            if (registeredUsers.length && !registeredUsers.some(u => u.role === 'admin')) {
+                registeredUsers[0].role = 'admin';
+                registeredUsers[0].status = 'approved';
+                changed = true;
+            }
+            if (changed) localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers));
+            if (currentUser && !currentUser.role) {
+                const match = registeredUsers.find(u => (u.id || u.email || '').toLowerCase() === (currentUser.email || '').toLowerCase());
+                if (match) { currentUser = { name: match.name, email: match.id, role: match.role, status: match.status }; localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); }
+            }
+        }
+
+        // ---------- Base de datos en la nube (Firebase) ----------
+        let fb = null;                 // SDK cargado + instancias
+        let pendingName = null;        // nombre ingresado al registrarse
+        let unsubStudents = null;
+        let unsubUsers = null;
+        let adminUsers = [];           // lista completa de usuarios (solo la ve un admin)
+        const syncedJson = new Map();  // id -> JSON ya guardado en Firestore
+
+        async function initCloud() {
+            if (!CLOUD_ENABLED) return;
+            try {
+                const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+                const [app, A, F] = await Promise.all([
+                    import(base + 'firebase-app.js'),
+                    import(base + 'firebase-auth.js'),
+                    import(base + 'firebase-firestore.js')
+                ]);
+                const inst = app.initializeApp(FIREBASE_CONFIG);
+                fb = { A, F, auth: A.getAuth(inst), db: F.getFirestore(inst) };
+                A.onAuthStateChanged(fb.auth, onCloudAuthChange);
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo conectar con la base de datos.', 'error');
+            }
+        }
+
+        async function onCloudAuthChange(user) {
+            if (unsubStudents) { unsubStudents(); unsubStudents = null; }
+            if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+            if (!user) { currentUser = null; adminUsers = []; updateAuthHeader(); return; }
+
+            const { doc, getDoc, setDoc, writeBatch, serverTimestamp } = fb.F;
+            const loginId = user.email && user.email.endsWith('@' + USERNAME_DOMAIN) ? user.email.split('@')[0] : user.email;
+            let profile = null;
+            try {
+                const ref = doc(fb.db, 'users', user.uid);
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    profile = snap.data();
+                } else {
+                    // Primera cuenta creada en el proyecto = administrador automático.
+                    const metaRef = doc(fb.db, 'meta', 'adminCreated');
+                    const metaSnap = await getDoc(metaRef);
+                    const makeAdmin = !metaSnap.exists();
+                    profile = {
+                        name: pendingName || user.displayName || loginId,
+                        username: loginId, email: user.email,
+                        provider: user.providerData[0]?.providerId || 'password',
+                        role: makeAdmin ? 'admin' : 'docente',
+                        status: makeAdmin ? 'approved' : 'pending',
+                        createdAt: serverTimestamp()
+                    };
+                    const batch = writeBatch(fb.db);
+                    batch.set(ref, profile);
+                    if (makeAdmin) batch.set(metaRef, { createdAt: serverTimestamp(), uid: user.uid });
+                    await batch.commit();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo verificar tu cuenta en la base de datos. Revisá las reglas de Firestore.', 'error');
+                pendingName = null;
+                await fb.A.signOut(fb.auth);
+                return;
+            }
+            pendingName = null;
+
+            if (profile.status !== 'approved') {
+                currentUser = null;
+                updateAuthHeader();
+                showToast(profile.status === 'rejected'
+                    ? 'El administrador rechazó tu solicitud de acceso.'
+                    : 'Tu cuenta fue creada. Un administrador tiene que aprobarla antes de que puedas ingresar.', 'error');
+                await fb.A.signOut(fb.auth);
+                return;
+            }
+
+            currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status };
+            closeAuthModal();
+            showToast(`Sesión iniciada como ${currentUser.name}`, 'success');
+            updateAuthHeader();
+            startStudentsSync();
+            if (isAdminUser()) startAdminUsersSync();
+        }
+
+        function renderAllStudents() {
+            renderStudentsTable();
+            updateDashboardMetrics();
+            populateJustificationSelect();
+        }
+
+        async function startStudentsSync() {
+            const { collection, getDocs, onSnapshot } = fb.F;
+            const col = collection(fb.db, 'students');
+            try {
+                const first = await getDocs(col);
+                if (first.empty && students.length) {        // primera vez: subir lo que había en local
+                    await pushStudents();
+                    showToast('Datos locales migrados a la base de datos.', 'success');
+                }
+                unsubStudents = onSnapshot(col, snap => {
+                    students = snap.docs.map(d => d.data());
+                    syncedJson.clear();
+                    students.forEach(s => syncedJson.set(s.id, JSON.stringify(s)));
+                    localStorage.setItem('veltrix_students', JSON.stringify(students));
+                    renderAllStudents();
+                });
+            } catch (err) {
+                console.error(err);
+                showToast('Sin acceso a la base de datos. Revisá las reglas de Firestore.', 'error');
+            }
+        }
+
+        // Sube solo los alumnos nuevos/modificados y borra los eliminados
+        async function pushStudents() {
+            const { writeBatch, doc } = fb.F;
+            const ops = [];
+            const ids = new Set(students.map(s => s.id));
+            students.forEach(s => {
+                const json = JSON.stringify(s);
+                if (syncedJson.get(s.id) !== json) ops.push(b => b.set(doc(fb.db, 'students', s.id), JSON.parse(json)));
+            });
+            [...syncedJson.keys()].filter(id => !ids.has(id)).forEach(id => ops.push(b => b.delete(doc(fb.db, 'students', id))));
+            for (let i = 0; i < ops.length; i += 400) {
+                const batch = writeBatch(fb.db);
+                ops.slice(i, i + 400).forEach(op => op(batch));
+                await batch.commit();
+            }
+            syncedJson.clear();
+            students.forEach(s => syncedJson.set(s.id, JSON.stringify(s)));
+        }
+
+        // Todas las funciones que antes usaban localStorage llaman a esta
+        function persistStudents() {
+            localStorage.setItem('veltrix_students', JSON.stringify(students));
+            if (fb && currentUser?.uid) {
+                pushStudents().catch(err => {
+                    console.error(err);
+                    showToast('No se pudo guardar en la base de datos.', 'error');
+                });
+            }
+        }
+
+        // ---------- Panel de administración (aprobar / rechazar / promover) ----------
+        async function startAdminUsersSync() {
+            try {
+                const { collection, onSnapshot } = fb.F;
+                unsubUsers = onSnapshot(collection(fb.db, 'users'), snap => {
+                    adminUsers = snap.docs.map(d => ({ key: d.id, ...d.data() }));
+                    renderAdminPanel();
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderAdminPanel() {
+            const pendingBox = document.getElementById('admin-pending-list');
+            const staffBox = document.getElementById('admin-staff-list');
+            if (!pendingBox || !staffBox) return;
+
+            const list = CLOUD_ENABLED
+                ? adminUsers
+                : registeredUsers.map(u => ({ key: u.id, name: u.name, username: u.id, role: u.role, status: u.status }));
+
+            const pending = list.filter(u => u.status === 'pending');
+            const others = list.filter(u => u.status !== 'pending');
+
+            pendingBox.innerHTML = pending.length ? pending.map(u => `
+                <div class="flex items-center justify-between gap-3 bg-darkbg border border-borderbg rounded-xl p-3">
+                    <div>
+                        <p class="text-xs font-bold text-white">${escapeHtml(u.name || u.username)}</p>
+                        <p class="text-[11px] text-gray-400">${escapeHtml(u.username || u.email || '')}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="adminApproveUser('${u.key}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30">Aprobar</button>
+                        <button onclick="adminRejectUser('${u.key}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30">Rechazar</button>
+                    </div>
+                </div>
+            `).join('') : `<p class="text-xs text-gray-500">No hay solicitudes pendientes.</p>`;
+
+            staffBox.innerHTML = others.length ? others.map(u => {
+                const isMe = currentUser && u.key === (currentUser.uid || currentUser.email);
+                const admin = u.role === 'admin';
+                const roleOptions = Object.entries(ROLES).filter(([k]) => k !== 'staff')
+                    .map(([k, r]) => `<option value="${k}" ${u.role === k || (u.role === 'staff' && k === 'docente') ? 'selected' : ''}>${r.label}</option>`).join('');
+                return `
+                <div class="flex items-center justify-between gap-3 bg-darkbg border border-borderbg rounded-xl p-3 flex-wrap">
+                    <div>
+                        <p class="text-xs font-bold text-white">${escapeHtml(u.name || u.username)}
+                            ${admin ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold-500/10 text-gold-500 border border-gold-500/30">ADMIN</span>' : ''}
+                            ${u.status === 'rejected' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30">RECHAZADO</span>' : ''}
+                        </p>
+                        <p class="text-[11px] text-gray-400">${escapeHtml(u.username || u.email || '')}</p>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        ${isMe ? '<span class="text-[10px] text-gray-500 self-center">Vos (' + escapeHtml(roleLabel(u.role)) + ')</span>' : `
+                            <select onchange="adminSetRole('${u.key}', this.value)" class="bg-cardbg border border-borderbg rounded-lg text-[11px] text-gray-200 px-2 py-1.5">
+                                ${roleOptions}
+                            </select>
+                            <button onclick="adminRemoveUser('${u.key}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30">Eliminar</button>
+                        `}
+                    </div>
+                </div>`;
+            }).join('') : `<p class="text-xs text-gray-500">No hay más usuarios.</p>`;
+        }
+
+        async function adminApproveUser(key) {
+            if (!isAdminUser()) return;
+            try {
+                if (CLOUD_ENABLED) await fb.F.updateDoc(fb.F.doc(fb.db, 'users', key), { status: 'approved' });
+                else { const u = registeredUsers.find(x => x.id === key); if (u) { u.status = 'approved'; localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers)); renderAdminPanel(); } }
+                showToast('Usuario aprobado.', 'success');
+            } catch (err) { console.error(err); showToast('No se pudo aprobar al usuario.', 'error'); }
+        }
+        async function adminRejectUser(key) {
+            if (!isAdminUser()) return;
+            try {
+                if (CLOUD_ENABLED) await fb.F.updateDoc(fb.F.doc(fb.db, 'users', key), { status: 'rejected' });
+                else { const u = registeredUsers.find(x => x.id === key); if (u) { u.status = 'rejected'; localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers)); renderAdminPanel(); } }
+                showToast('Solicitud rechazada.');
+            } catch (err) { console.error(err); showToast('No se pudo rechazar al usuario.', 'error'); }
+        }
+        function countOtherAdmins(list, excludeKey) {
+            return list.filter(u => u.role === 'admin' && u.key !== excludeKey).length;
+        }
+        async function adminSetRole(key, role) {
+            if (!isAdminUser()) return;
+            const list = CLOUD_ENABLED ? adminUsers : registeredUsers.map(u => ({ key: u.id, role: u.role }));
+            if (role !== 'admin' && countOtherAdmins(list, key) === 0) {
+                showToast('Tiene que quedar al menos un administrador. Hacé admin a otra persona antes de quitarte el rol.', 'error');
+                renderAdminPanel();
+                return;
+            }
+            try {
+                if (CLOUD_ENABLED) await fb.F.updateDoc(fb.F.doc(fb.db, 'users', key), { role });
+                else { const u = registeredUsers.find(x => x.id === key); if (u) { u.role = role; localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers)); renderAdminPanel(); } }
+                showToast(`Rol actualizado a ${roleLabel(role)}.`, 'success');
+            } catch (err) { console.error(err); showToast('No se pudo cambiar el rol.', 'error'); }
+        }
+        async function adminRemoveUser(key) {
+            if (!isAdminUser()) return;
+            const list = CLOUD_ENABLED ? adminUsers : registeredUsers.map(u => ({ key: u.id, role: u.role }));
+            if (countOtherAdmins(list, key) === 0 && list.find(u => u.key === key)?.role === 'admin') {
+                showToast('No podés eliminar al único administrador.', 'error');
+                return;
+            }
+            try {
+                if (CLOUD_ENABLED) await fb.F.deleteDoc(fb.F.doc(fb.db, 'users', key));
+                else { registeredUsers = registeredUsers.filter(x => x.id !== key); localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers)); renderAdminPanel(); }
+                showToast('Acceso eliminado.');
+            } catch (err) { console.error(err); showToast('No se pudo eliminar el acceso.', 'error'); }
+        }
+
+        // ---------- Inicio de sesión ----------
+        async function handleLogin(e) {
+            e.preventDefault();
+            const id = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value;
+
+            if (CLOUD_ENABLED) {
+                if (!fb) return authMsg('Conectando con la base de datos, probá de nuevo en un momento.', 'info');
+                try {
+                    await fb.A.signInWithEmailAndPassword(fb.auth, toEmail(id), pass);
+                    // El cierre del modal y el resultado (aprobado/pendiente) lo maneja onCloudAuthChange.
+                } catch (err) { authMsg(authErrorMessage(err)); }
+                return;
+            }
+
+            // Modo local
+            const key = id.toLowerCase();
+            const hash = await sha256(pass);
+            const found = registeredUsers.find(u =>
+                (u.id || u.email || '').toLowerCase() === key && (u.hash ? u.hash === hash : u.pass === pass));
+            if (!found) return authMsg('Usuario o contraseña incorrectos.');
+            if (found.status === 'pending') return authMsg('Tu cuenta todavía no fue aprobada por un administrador.', 'info');
+            if (found.status === 'rejected') return authMsg('El administrador rechazó tu solicitud de acceso.');
+            currentUser = { name: found.name, email: found.id || found.email, role: found.role || 'staff', status: found.status || 'approved' };
+            localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser));
+            updateAuthHeader();
+            closeAuthModal();
+            showToast(`Sesión iniciada como ${currentUser.name}`, 'success');
+        }
+
+        async function handleAuthRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-auth-name').value.trim();
+            const id = document.getElementById('reg-auth-email').value.trim();
+            const pass = document.getElementById('reg-auth-pass').value;
+
+            if (!validLoginId(id)) return authMsg('El usuario debe tener 3-30 caracteres (letras, números, . _ -) o ser un correo.');
+            if (pass.length < 6) return authMsg('La contraseña debe tener al menos 6 caracteres.');
+
+            if (CLOUD_ENABLED) {
+                if (!fb) return authMsg('Conectando con la base de datos, probá de nuevo en un momento.', 'info');
+                try {
+                    pendingName = name;
+                    await fb.A.createUserWithEmailAndPassword(fb.auth, toEmail(id), pass);
+                    // El resultado (admin automático o pendiente de aprobación) lo maneja onCloudAuthChange.
+                } catch (err) { pendingName = null; authMsg(authErrorMessage(err)); }
+                return;
+            }
+
+            // Modo local
+            const key = id.toLowerCase();
+            if (registeredUsers.some(u => (u.id || u.email || '').toLowerCase() === key)) {
+                return authMsg('Ese usuario o correo ya está registrado.');
+            }
+            const isFirstEver = registeredUsers.length === 0;
+            const newUser = { name, id: key, hash: await sha256(pass), role: isFirstEver ? 'admin' : 'docente', status: isFirstEver ? 'approved' : 'pending' };
+            registeredUsers.push(newUser);
+            localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers));
+
+            if (isFirstEver) {
+                currentUser = { name, email: key, role: 'admin', status: 'approved' };
+                localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser));
+                updateAuthHeader();
+                closeAuthModal();
+                showToast('Cuenta creada. Sos el administrador del sistema.', 'success');
+            } else {
+                authMsg('Cuenta creada. Un administrador tiene que aprobarla antes de que puedas ingresar.', 'info');
+            }
+        }
+
+        async function handleGoogleLogin() {
+            clearAuthMsg();
+            if (!CLOUD_ENABLED) {
+                return authMsg('Google todavía no está activado: falta pegar los datos de Firebase en FIREBASE_CONFIG dentro del código. Mientras tanto, registrate con usuario y contraseña.');
+            }
+            if (location.protocol === 'file:') {
+                return authMsg('Google no funciona abriendo el archivo con doble clic. Publicá la página por https:// o abrila desde localhost.');
+            }
+            if (!fb) return authMsg('Conectando con la base de datos, probá de nuevo en un momento.', 'info');
+            try {
+                await fb.A.signInWithPopup(fb.auth, new fb.A.GoogleAuthProvider());
+                // El cierre del modal y el resultado (aprobado/pendiente) lo maneja onCloudAuthChange.
+            } catch (err) { authMsg(authErrorMessage(err)); }
+        }
+
+        async function handleLogout() {
+            if (CLOUD_ENABLED && fb) {
+                await fb.A.signOut(fb.auth);
+                // no dejar datos de alumnos en el equipo al cerrar sesión
+                students = [];
+                syncedJson.clear();
+                localStorage.removeItem('veltrix_students');
+                renderAllStudents();
+            } else {
+                currentUser = null;
+                localStorage.removeItem('veltrix_current_user');
+                updateAuthHeader();
+            }
+            showToast('Sesión cerrada.');
+        }
+
+        function downloadSelfSource() {
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob(["<!DOCTYPE html>\n" + htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'veltrix_smart_system.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Descarga del archivo .html completada", "success");
+        }
+    </script>
+</body>
+</html>
