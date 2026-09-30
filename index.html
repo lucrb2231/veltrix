@@ -362,7 +362,7 @@
             <!-- Veltrix Brand Logo Component -->
             <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('dashboard')">
                 <div class="w-14 h-10 rounded-xl bg-neutral-900 border border-gold-500/40 p-1 flex items-center justify-center shadow-lg shadow-gold-500/10 overflow-hidden">
-                    <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="w-full h-full object-contain rounded-lg">
+                    <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="w-full h-full object-contain rounded-lg" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e1e1e/ffd700?text=VELTRIX';">
                 </div>
                 <div>
                     <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white flex items-center gap-1.5">
@@ -779,7 +779,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-darkbg border border-borderbg p-5 rounded-2xl text-center hover:border-gold-500/40 transition">
                             <div class="w-full h-48 rounded-xl bg-neutral-900 border border-gold-500/20 overflow-hidden mb-4">
-                                <img src="ChatGPT_Image_20_may_2026,_11_09_18_a.m._1790035558534.png" alt="Justin Fagundez" class="w-full h-full object-cover">
+                                <img src="ChatGPT_Image_20_may_2026,_11_09_18_a.m._1790035558534.png" alt="Justin Fagundez" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x300/1e1e1e/ffd700?text=JF';">
                             </div>
                             <h3 class="text-sm font-bold text-white">Justin Fagundez</h3>
                             <p class="text-xs text-gold-500 font-medium">Lógica y almacenamiento local</p>
@@ -788,7 +788,7 @@
 
                         <div class="bg-darkbg border border-borderbg p-5 rounded-2xl text-center hover:border-gold-500/40 transition">
                             <div class="w-full h-48 rounded-xl bg-neutral-900 border border-gold-500/20 overflow-hidden mb-4">
-                                <img src="ChatGPT_Image_20_may_2026,_11_06_01_a.m._1790035561015.png" alt="Lucas Bonette" class="w-full h-full object-cover">
+                                <img src="ChatGPT_Image_20_may_2026,_11_06_01_a.m._1790035561015.png" alt="Lucas Bonette" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x300/1e1e1e/ffd700?text=LB';">
                             </div>
                             <h3 class="text-sm font-bold text-white">Lucas Bonette</h3>
                             <p class="text-xs text-gold-500 font-medium">Desarrollador principal</p>
@@ -797,7 +797,7 @@
 
                         <div class="bg-darkbg border border-borderbg p-5 rounded-2xl text-center hover:border-gold-500/40 transition">
                             <div class="w-full h-48 rounded-xl bg-neutral-900 border border-gold-500/20 overflow-hidden mb-4">
-                                <img src="ChatGPT_Image_20_may_2026,_11_07_31_a.m._1790035563762.png" alt="Facundo Pintos" class="w-full h-full object-cover">
+                                <img src="ChatGPT_Image_20_may_2026,_11_07_31_a.m._1790035563762.png" alt="Facundo Pintos" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x300/1e1e1e/ffd700?text=FP';">
                             </div>
                             <h3 class="text-sm font-bold text-white">Facundo Pintos</h3>
                             <p class="text-xs text-gold-500 font-medium">Diseño de UI/UX y Nexus IA</p>
@@ -1854,8 +1854,18 @@
                     import(base + 'firebase-firestore.js')
                 ]);
                 const inst = app.initializeApp(FIREBASE_CONFIG);
-                fb = { A, F, auth: A.getAuth(inst), db: F.getFirestore(inst) };
+                // experimentalAutoDetectLongPolling evita el error "el cliente está desconectado"
+                // en redes, extensiones del navegador o proxys que bloquean el streaming normal.
+                const db = F.initializeFirestore(inst, { experimentalAutoDetectLongPolling: true, useFetchStreams: false });
+                fb = { A, F, auth: A.getAuth(inst), db };
                 A.onAuthStateChanged(fb.auth, onCloudAuthChange);
+                // Resultado de un login con Google por redirección (evita el bloqueo de ventanas
+                // emergentes que impone GitHub Pages con Cross-Origin-Opener-Policy).
+                try {
+                    await A.getRedirectResult(fb.auth);
+                } catch (err) {
+                    showToast(authErrorMessage(err), 'error');
+                }
             } catch (err) {
                 console.error(err);
                 showToast('No se pudo conectar con la base de datos.', 'error');
@@ -2169,8 +2179,10 @@
             }
             if (!fb) return authMsg('Conectando con la base de datos, probá de nuevo en un momento.', 'info');
             try {
-                await fb.A.signInWithPopup(fb.auth, new fb.A.GoogleAuthProvider());
-                // El cierre del modal y el resultado (aprobado/pendiente) lo maneja onCloudAuthChange.
+                // signInWithRedirect en vez de signInWithPopup: GitHub Pages bloquea con
+                // Cross-Origin-Opener-Policy la forma en que Firebase detecta el cierre del popup.
+                await fb.A.signInWithRedirect(fb.auth, new fb.A.GoogleAuthProvider());
+                // La página se recarga y el resultado lo procesa initCloud() -> getRedirectResult().
             } catch (err) { authMsg(authErrorMessage(err)); }
         }
 
