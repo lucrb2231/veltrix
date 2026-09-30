@@ -695,10 +695,18 @@
                         <h2 class="text-xl font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-file-signature text-gold-500"></i> Portal de justificación de inasistencias
                         </h2>
-                        <p class="text-xs text-gray-400 mt-1">Adjuntá el motivo médico o institucional para justificar una inasistencia.</p>
+                        <p class="text-xs text-gray-400 mt-1">Adjuntá el motivo médico o institucional para justificar una inasistencia o una salida temprana.</p>
                     </div>
 
                     <form onsubmit="handleJustification(event)" class="space-y-4 max-w-xl">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Tipo de justificación</label>
+                            <select id="just-type" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                <option value="absence">Inasistencia (falta)</option>
+                                <option value="early-exit">Salida temprana</option>
+                            </select>
+                            <p class="text-[11px] text-gray-500 mt-1">La salida temprana justificada permite registrar la salida hoy antes de las 16:45.</p>
+                        </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-300 mb-1">Seleccionar alumno</label>
                             <select id="just-student-select" required class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
@@ -706,7 +714,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 mb-1">Detalle del certificado o de la inasistencia</label>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Detalle del certificado o del motivo</label>
                             <textarea id="just-reason" required rows="3" placeholder="Ej.: certificado médico presentado..." class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500"></textarea>
                         </div>
                         <button type="submit" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-6 py-2.5 rounded-xl text-xs transition">
@@ -813,7 +821,7 @@
                                 <img src="ChatGPT_Image_20_may_2026,_11_09_18_a.m._1790035558534.png" alt="Justin Fagundez" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x300/1e1e1e/ffd700?text=JF';">
                             </div>
                             <h3 class="text-sm font-bold text-white">Justin Fagundez</h3>
-                            <p class="text-xs text-gold-500 font-medium">Lógica y almacenamiento local</p>
+                            <p class="text-xs text-gold-500 font-medium">Diseñador y documentador</p>
                             <p class="text-xs text-gray-400 mt-2">Persistencia y pruebas en vivo.</p>
                         </div>
 
@@ -822,7 +830,7 @@
                                 <img src="ChatGPT_Image_20_may_2026,_11_06_01_a.m._1790035561015.png" alt="Lucas Bonette" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x300/1e1e1e/ffd700?text=LB';">
                             </div>
                             <h3 class="text-sm font-bold text-white">Lucas Bonette</h3>
-                            <p class="text-xs text-gold-500 font-medium">Desarrollador principal</p>
+                            <p class="text-xs text-gold-500 font-medium">Programador e investigador</p>
                             <p class="text-xs text-gray-400 mt-2">Arquitectura de Veltrix y algoritmo biométrico.</p>
                         </div>
 
@@ -831,7 +839,7 @@
                                 <img src="ChatGPT_Image_20_may_2026,_11_07_31_a.m._1790035563762.png" alt="Facundo Pintos" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x300/1e1e1e/ffd700?text=FP';">
                             </div>
                             <h3 class="text-sm font-bold text-white">Facundo Pintos</h3>
-                            <p class="text-xs text-gold-500 font-medium">Diseño de UI/UX y Nexus IA</p>
+                            <p class="text-xs text-gold-500 font-medium">Líder y comunicador</p>
                             <p class="text-xs text-gray-400 mt-2">Soporte inteligente y diseño visual.</p>
                         </div>
                     </div>
@@ -958,6 +966,15 @@
         const FACE_MATCH_THRESHOLD = 0.48;
         const FACE_DESCRIPTOR_LENGTH = 128;
         const DAILY_EXIT_TIME = '16:45';
+        const FACE_MATCH_MARGIN = 0.06;      // el mejor candidato debe superar al segundo por este margen
+        const FACE_SCAN_FRAMES = 6;          // fotogramas por escaneo de asistencia
+        const FACE_REGISTER_FRAMES = 8;      // fotogramas por registro (más datos = mejor referencia)
+        const FACE_FRAME_CONSISTENCY = 0.32; // distancia máxima entre un fotograma y el promedio
+        const FACE_MIN_VOTE_RATIO = 0.6;     // % de fotogramas que deben votar por el mismo alumno
+        let ssdReady = false;
+        let faceModelsReady = false;
+        let scanBusy = false;
+        let faceGuideToken = null;
 
         window.onload = function() {
             updateClock();
@@ -1026,12 +1043,14 @@
             try {
                 activeStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 video.srcObject = activeStream;
+                startFaceGuide(videoId);
             } catch (err) {
                 showToast("No se pudo acceder a la cámara web.", "error");
             }
         }
 
         function stopCamera() {
+            stopFaceGuide();
             if (activeStream) {
                 activeStream.getTracks().forEach(track => track.stop());
                 activeStream = null;
@@ -1047,13 +1066,22 @@
             faceModelsPromise = Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
-                faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
-            ]).then(() => true).catch(error => {
+                faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
+                // Detector más preciso; si falla la descarga se usa el Tiny como respaldo.
+                faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL)
+                    .then(() => { ssdReady = true; })
+                    .catch(() => { ssdReady = false; })
+            ]).then(() => { faceModelsReady = true; return true; }).catch(error => {
                 faceModelsPromise = null;
                 throw error;
             });
 
             return faceModelsPromise;
+        }
+
+        function getFaceDetectorOptions(fast = false) {
+            if (ssdReady && !fast) return new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 });
+            return new faceapi.TinyFaceDetectorOptions({ inputSize: fast ? 320 : 512, scoreThreshold: 0.5 });
         }
 
         function setFaceButtonBusy(isBusy) {
@@ -1076,54 +1104,208 @@
             return values.map(value => value / norm);
         }
 
-        async function extractFaceDescriptorFromVideo(videoId) {
+        function averagePoint(points) {
+            const n = points.length;
+            return {
+                x: points.reduce((sum, p) => sum + p.x, 0) / n,
+                y: points.reduce((sum, p) => sum + p.y, 0) / n
+            };
+        }
+
+        // Brillo y nitidez de la zona del rostro (imagen reducida a 64x64).
+        function measureFaceCrop(video, box) {
+            const size = 64;
+            const canvas = measureFaceCrop.canvas || (measureFaceCrop.canvas = document.createElement('canvas'));
+            canvas.width = canvas.height = size;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const sx = Math.max(0, box.x), sy = Math.max(0, box.y);
+            const sw = Math.min(box.width, video.videoWidth - sx);
+            const sh = Math.min(box.height, video.videoHeight - sy);
+            if (sw <= 0 || sh <= 0) return { brightness: 0, sharpness: 0 };
+            ctx.drawImage(video, sx, sy, sw, sh, 0, 0, size, size);
+            const data = ctx.getImageData(0, 0, size, size).data;
+            const gray = new Float32Array(size * size);
+            let sum = 0;
+            for (let i = 0; i < gray.length; i++) {
+                gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+                sum += gray[i];
+            }
+            let lapSum = 0, lapSq = 0, n = 0;
+            for (let y = 1; y < size - 1; y++) {
+                for (let x = 1; x < size - 1; x++) {
+                    const i = y * size + x;
+                    const l = 4 * gray[i] - gray[i - 1] - gray[i + 1] - gray[i - size] - gray[i + size];
+                    lapSum += l; lapSq += l * l; n++;
+                }
+            }
+            const mean = lapSum / n;
+            return { brightness: sum / gray.length, sharpness: lapSq / n - mean * mean };
+        }
+
+        // Devuelve un mensaje si el rostro no sirve para identificar; null si es válido.
+        function evaluateFaceQuality(video, result) {
+            const box = result.detection.box;
+            if (result.detection.score < 0.7) return "El rostro se ve poco claro. Mejorá la iluminación.";
+            if ((box.width * box.height) / (video.videoWidth * video.videoHeight) < 0.06) return "Acercate un poco más a la cámara.";
+            const cx = (box.x + box.width / 2) / video.videoWidth;
+            const cy = (box.y + box.height / 2) / video.videoHeight;
+            if (Math.abs(cx - 0.5) > 0.22 || Math.abs(cy - 0.5) > 0.25) return "Centrá el rostro en el recuadro.";
+
+            const pts = result.landmarks.positions;
+            const leftEye = averagePoint(pts.slice(36, 42));
+            const rightEye = averagePoint(pts.slice(42, 48));
+            const eyeDist = Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y) || 1;
+            const yaw = Math.abs(pts[30].x - (leftEye.x + rightEye.x) / 2) / eyeDist;
+            const roll = Math.abs(Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)) * 180 / Math.PI;
+            if (yaw > 0.2) return "Mirá de frente a la cámara.";
+            if (roll > 15) return "Enderezá la cabeza.";
+
+            const { brightness, sharpness } = measureFaceCrop(video, box);
+            if (brightness < 50) return "Hay muy poca luz sobre el rostro.";
+            if (brightness > 215) return "Hay demasiada luz sobre el rostro.";
+            if (sharpness < 15) return "Imagen borrosa. Quedate quieto un momento.";
+            return null;
+        }
+
+        // Ordena por tamaño; si hay otra persona de tamaño similar, rechaza (evita mezclar identidades).
+        function pickMainFace(results) {
+            const sorted = [...results].sort((a, b) => b.detection.box.area - a.detection.box.area);
+            if (sorted.length > 1 && sorted[1].detection.box.area / sorted[0].detection.box.area > 0.35) {
+                return { error: "Se detectaron varias personas. Debe haber una sola frente a la cámara." };
+            }
+            return { face: sorted[0] };
+        }
+
+        async function analyzeFaceFrame(video) {
+            const results = await faceapi
+                .detectAllFaces(video, getFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptors();
+            if (results.length === 0) {
+                return { error: "No se detectó ningún rostro. Centrá la cara, mejorá la iluminación y mirá a la cámara." };
+            }
+            const picked = pickMainFace(results);
+            if (picked.error) return picked;
+            const quality = evaluateFaceQuality(video, picked.face);
+            if (quality) return { error: quality };
+            const descriptor = Array.from(picked.face.descriptor);
+            if (descriptor.length !== FACE_DESCRIPTOR_LENGTH) {
+                return { error: "No se pudo generar un descriptor facial válido." };
+            }
+            return { descriptor: normalizeDescriptor(descriptor) };
+        }
+
+        function meanVector(vectors) {
+            return vectors[0].map((_, i) => vectors.reduce((sum, v) => sum + v[i], 0) / vectors.length);
+        }
+
+        // Captura varios fotogramas buenos, descarta los atípicos y promedia el resto.
+        async function captureFaceScan(videoId, frameTarget = FACE_SCAN_FRAMES) {
             const video = document.getElementById(videoId);
             if (!video || !video.videoWidth) {
                 throw new Error("La cámara todavía no está lista. Esperá un momento y volvé a intentar.");
             }
-
             await ensureFaceModels();
 
-            const detections = await faceapi
-                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.6
-                }))
-                .withFaceLandmarks()
-                .withFaceDescriptors();
-
-            if (detections.length === 0) {
-                throw new Error("No se detectó ningún rostro. Centrá la cara, mejorá la iluminación y mirá a la cámara.");
-            }
-            if (detections.length > 1) {
-                throw new Error("Se detectaron varios rostros. Debe haber una sola persona frente a la cámara.");
+            const frames = [];
+            let lastError = null;
+            for (let attempt = 0; attempt < frameTarget * 3 && frames.length < frameTarget; attempt++) {
+                const result = await analyzeFaceFrame(video);
+                if (result.error) lastError = result.error;
+                else frames.push(result.descriptor);
+                await wait(100);
             }
 
-            const detection = detections[0];
-            const box = detection.detection.box;
-            const faceAreaRatio = (box.width * box.height) / (video.videoWidth * video.videoHeight);
-            if (detection.detection.score < 0.7 || faceAreaRatio < 0.05) {
-                throw new Error("El rostro se ve pequeño o poco claro. Acercate y mirá de frente.");
+            const minFrames = Math.ceil(frameTarget * 0.6);
+            if (frames.length < minFrames) {
+                throw new Error(lastError || "No se pudo capturar el rostro con claridad. Intentá de nuevo.");
             }
 
-            const descriptor = Array.from(detection.descriptor);
-            if (descriptor.length !== FACE_DESCRIPTOR_LENGTH) {
-                throw new Error("No se pudo generar un descriptor facial válido.");
+            const center = normalizeDescriptor(meanVector(frames));
+            const consistent = frames.filter(f => calculateVectorDistance(f, center) <= FACE_FRAME_CONSISTENCY);
+            if (consistent.length < minFrames) {
+                throw new Error("La captura no fue estable (movimiento o cambio de persona). Quedate quieto y volvé a intentar.");
             }
-            return descriptor;
+            return { descriptor: normalizeDescriptor(meanVector(consistent)), frames: consistent };
         }
 
-        async function captureStableFaceDescriptor(videoId, sampleCount = 3) {
-            const samples = [];
-            for (let i = 0; i < sampleCount; i++) {
-                samples.push(await extractFaceDescriptorFromVideo(videoId));
-                if (i < sampleCount - 1) await wait(180);
-            }
+        async function captureStableFaceDescriptor(videoId) {
+            return (await captureFaceScan(videoId, FACE_REGISTER_FRAMES)).descriptor;
+        }
 
-            const averaged = samples[0].map((_, index) =>
-                samples.reduce((sum, sample) => sum + sample[index], 0) / samples.length
-            );
-            return normalizeDescriptor(averaged);
+        // Identifica al alumno: distancia, votos por fotograma y margen frente al segundo candidato.
+        function findBestFaceMatch(scan) {
+            const candidates = students
+                .map(student => ({ student, stored: getStoredFaceDescriptor(student) }))
+                .filter(c => c.stored);
+            if (!candidates.length) return { student: null };
+
+            const ranked = candidates.map(c => ({
+                student: c.student,
+                distance: calculateVectorDistance(scan.descriptor, c.stored),
+                votes: 0
+            })).sort((a, b) => a.distance - b.distance);
+
+            scan.frames.forEach(frame => {
+                let nearest = null, nearestDist = Infinity;
+                candidates.forEach(c => {
+                    const d = calculateVectorDistance(frame, c.stored);
+                    if (d < nearestDist) { nearestDist = d; nearest = c.student; }
+                });
+                if (nearest && nearestDist <= FACE_MATCH_THRESHOLD + 0.04) {
+                    ranked.find(r => r.student === nearest).votes++;
+                }
+            });
+
+            const best = ranked[0], second = ranked[1];
+            if (best.distance > FACE_MATCH_THRESHOLD) return { student: null, distance: best.distance };
+            if (best.votes / scan.frames.length < FACE_MIN_VOTE_RATIO) return { student: null, distance: best.distance, ambiguous: true };
+            if (second && second.distance - best.distance < FACE_MATCH_MARGIN) return { student: null, distance: best.distance, ambiguous: true };
+            return { student: best.student, distance: best.distance };
+        }
+
+        // Guía en vivo bajo la cámara: indica cómo colocarse antes de escanear.
+        function startFaceGuide(videoId) {
+            stopFaceGuide();
+            const video = document.getElementById(videoId);
+            if (!video) return;
+            let hint = document.getElementById('face-hint-' + videoId);
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'face-hint-' + videoId;
+                hint.className = 'mt-2 text-[11px] font-semibold text-center min-h-[16px] relative z-10 text-gray-400';
+                video.parentElement.insertBefore(hint, video.parentElement.querySelector('button'));
+            }
+            const setHint = (text, ok) => {
+                hint.textContent = text;
+                hint.className = hint.className.replace(/text-(gray|emerald|amber)-\d+/, ok === true ? 'text-emerald-400' : ok === false ? 'text-amber-400' : 'text-gray-400');
+            };
+            const token = faceGuideToken = {};
+            (async () => {
+                while (faceGuideToken === token) {
+                    try {
+                        if (scanBusy) {
+                            // el escaneo en curso usa el detector; no compiten
+                        } else if (!faceModelsReady || !video.videoWidth) {
+                            setHint('Preparando cámara y modelo facial...', null);
+                        } else {
+                            const results = await faceapi.detectAllFaces(video, getFaceDetectorOptions(true)).withFaceLandmarks();
+                            if (faceGuideToken !== token) break;
+                            if (!results.length) setHint('Buscando rostro...', null);
+                            else {
+                                const picked = pickMainFace(results);
+                                const msg = picked.error || evaluateFaceQuality(video, picked.face);
+                                if (msg) setHint(msg, false); else setHint('Rostro listo ✓', true);
+                            }
+                        }
+                    } catch (e) { /* reintenta en el siguiente ciclo */ }
+                    await wait(450);
+                }
+            })();
+        }
+
+        function stopFaceGuide() {
+            faceGuideToken = null;
         }
 
         function calculateVectorDistance(v1, v2) {
@@ -1183,6 +1365,7 @@
             }
 
             setFaceButtonBusy(true);
+            scanBusy = true;
             try {
                 const newDescriptor = await captureStableFaceDescriptor('reg-video');
                 const duplicateFace = students.find(student => {
@@ -1230,6 +1413,7 @@
                 showToast(error.message || "No se pudo verificar el rostro.", "error");
             } finally {
                 setFaceButtonBusy(false);
+                scanBusy = false;
             }
         }
 
@@ -1240,12 +1424,31 @@
                 return;
             }
 
-            let currentDescriptor;
+            if (scanBusy) return;
+            scanBusy = true;
+            const scanBox = document.getElementById('attendance-scan-result');
+            scanBox.innerHTML = `
+                <div class="w-16 h-16 rounded-full bg-gold-500/10 text-gold-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-gold-500/30">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                </div>
+                <h3 class="text-base font-bold text-white">Escaneando rostro...</h3>
+                <p class="text-xs text-gray-400 mt-1">Mirá de frente y quedate quieto unos segundos.</p>
+            `;
+            let scan;
             try {
-                currentDescriptor = await captureStableFaceDescriptor('attend-video');
+                scan = await captureFaceScan('attend-video');
             } catch (error) {
+                scanBox.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-500/30">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white">No se pudo escanear</h3>
+                    <p class="text-xs text-gray-400 mt-1">${escapeHtml(error.message || "No se pudo verificar el rostro.")}</p>
+                `;
                 showToast(error.message || "No se pudo verificar el rostro.", "error");
                 return;
+            } finally {
+                scanBusy = false;
             }
 
             const onTimeLimit = document.getElementById('time-limit-on-time').value || "08:00";
@@ -1255,28 +1458,18 @@
             const currentHours = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
             const todayKey = getLocalDateKey(now);
 
-            let bestMatch = null;
-            let lowestDistance = Infinity;
+            const matchResult = findBestFaceMatch(scan);
+            const bestMatch = matchResult.student;
 
-            students.forEach(student => {
-                const storedDescriptor = getStoredFaceDescriptor(student);
-                if (!storedDescriptor) return;
-                const dist = calculateVectorDistance(currentDescriptor, storedDescriptor);
-                if (dist < lowestDistance) {
-                    lowestDistance = dist;
-                    bestMatch = student;
-                }
-            });
-
-            // Never identify the closest person without a sufficiently close match.
-            if (!bestMatch || lowestDistance > FACE_MATCH_THRESHOLD) {
+            // Solo se identifica con coincidencia clara: distancia, votos y margen frente al segundo.
+            if (!bestMatch) {
                 const resultBox = document.getElementById('attendance-scan-result');
                 resultBox.innerHTML = `
                     <div class="w-16 h-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-rose-500/30">
                         <i class="fa-solid fa-user-slash"></i>
                     </div>
                     <h3 class="text-base font-bold text-white">Rostro no reconocido</h3>
-                    <p class="text-xs text-gray-400 mt-1">No se marcó asistencia porque no existe una coincidencia facial segura.</p>
+                    <p class="text-xs text-gray-400 mt-1">${matchResult.ambiguous ? 'El rostro se parece a más de un alumno o el escaneo no fue concluyente. Repetí el escaneo con mejor luz y de frente.' : 'No se marcó asistencia porque no existe una coincidencia facial segura.'}</p>
                 `;
                 showToast("Rostro no reconocido. No se registró asistencia.", "error");
                 return;
@@ -1311,7 +1504,10 @@
                 return;
             }
 
-            if (todayScans.length === 1 && currentHours < DAILY_EXIT_TIME) {
+            const hasEarlyExitToday = Array.isArray(bestMatch.earlyExits) &&
+                bestMatch.earlyExits.some(x => x && x.date === todayKey);
+
+            if (todayScans.length === 1 && currentHours < DAILY_EXIT_TIME && !hasEarlyExitToday) {
                 const resultBox = document.getElementById('attendance-scan-result');
                 resultBox.innerHTML = `
                     <div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-500/30">
@@ -1334,10 +1530,11 @@
             bestMatch.attendanceScans.push({
                 date: todayKey,
                 time: currentHours,
-                type: scanType
+                type: scanType,
+                ...(scanType === 'Salida' && currentHours < DAILY_EXIT_TIME ? { justifiedEarlyExit: true } : {})
             });
             if (scanType === 'Entrada') bestMatch.status = newStatus;
-            bestMatch.lastRecord = `${now.toLocaleDateString()} ${currentHours} (${scanType})`;
+            bestMatch.lastRecord = `${now.toLocaleDateString()} ${currentHours} (${scanType}${scanType === 'Salida' && currentHours < DAILY_EXIT_TIME ? ' temprana justificada' : ''})`;
 
             persistStudents();
 
@@ -1604,16 +1801,41 @@
             e.preventDefault();
             if (!requireCanManageStudents()) return;
             const id = document.getElementById('just-student-select').value;
+            const type = document.getElementById('just-type')?.value || 'absence';
+            const reason = document.getElementById('just-reason').value.trim();
             const student = students.find(s => s.id === id);
+            if (!student) return;
 
-            if (student) {
+            const now = new Date();
+            if (type === 'early-exit') {
+                if (student.status === 'Expulsado') {
+                    showToast(`${student.name} está expulsado. No se puede justificar una salida.`, "error");
+                    return;
+                }
+                if (!Array.isArray(student.earlyExits)) student.earlyExits = [];
+                const todayKey = getLocalDateKey(now);
+                if (student.earlyExits.some(x => x.date === todayKey)) {
+                    showToast(`${student.name} ya tiene una salida temprana justificada hoy.`, "error");
+                    return;
+                }
+                student.earlyExits.push({
+                    date: todayKey,
+                    time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+                    reason
+                });
+                student.lastRecord = `Salida temprana justificada: ${now.toLocaleDateString()}`;
+                persistStudents();
+                renderStudentsTable();
+                showToast(`Salida temprana justificada para ${student.name}. Ya puede registrar su salida hoy.`, "success");
+            } else {
                 student.status = 'Justificado';
-                student.lastRecord = `Justificado: ${new Date().toLocaleDateString()}`;
+                student.lastRecord = `Justificado: ${now.toLocaleDateString()}`;
                 persistStudents();
                 renderStudentsTable();
                 updateDashboardMetrics();
                 showToast(`Inasistencia justificada para ${student.name}`, "success");
             }
+            document.getElementById('just-reason').value = '';
         }
 
         function handleAiChat(e) {
