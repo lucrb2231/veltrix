@@ -414,9 +414,17 @@
                     <i class="fa-solid fa-graduation-cap w-5 text-gold-500"></i>
                     Directorio de alumnos
                 </button>
+                <button onclick="switchTab('classes')" id="nav-classes" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-chalkboard-user w-5 text-gold-500"></i>
+                    Clases
+                </button>
                 <button onclick="switchTab('staff')" id="nav-staff" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
                     <i class="fa-solid fa-user-shield w-5 text-gold-500"></i>
                     Directores y tutores
+                </button>
+                <button onclick="switchTab('personnel')" id="nav-personnel" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-people-group w-5 text-gold-500"></i>
+                    Personal registrado
                 </button>
                 <button onclick="switchTab('justifications')" id="nav-justifications" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
                     <i class="fa-solid fa-file-signature w-5 text-gold-500"></i>
@@ -578,12 +586,21 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-300 mb-1">Grado o año *</label>
                                     <select id="reg-student-grade" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                         <optgroup label="Alumnos">
                                          <option value="7.º año">7.º año</option>
                                          <option value="8.º año">8.º año</option>
                                          <option value="9.º año">9.º año</option>
                                          <option value="1.er año de EMS">1.er año de EMS</option>
                                          <option value="2.º año de EMS">2.º año de EMS</option>
                                          <option value="3.er año de EMS">3.er año de EMS</option>
+                                         </optgroup>
+                                         <optgroup label="Personal">
+                                         <option value="Director">Director/a</option>
+                                         <option value="Subdirector">Subdirector/a</option>
+                                         <option value="Mantenimiento">Mantenimiento</option>
+                                         <option value="Docente">Docente</option>
+                                         <option value="Otro">Otro (personal)</option>
+                                         </optgroup>
                                     </select>
                                 </div>
                             </div>
@@ -667,6 +684,19 @@
                 </div>
             </section>
 
+            <!-- CLASSES TAB -->
+            <section id="tab-classes" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-chalkboard-user text-gold-500"></i> Clases
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1 mb-5">Los alumnos agrupados por grado o año.</p>
+                    <div id="classes-list" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
             <!-- STAFF TAB -->
             <section id="tab-staff" class="tab-content space-y-6 hidden">
                 <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
@@ -683,6 +713,19 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="staff-grid-cards">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- PERSONNEL TAB (usuarios registrados en la app) -->
+            <section id="tab-personnel" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-people-group text-gold-500"></i> Personal registrado en el sistema
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1 mb-5">Docentes, dirección, funcionarios y demás trabajadores que crearon una cuenta en Veltrix, agrupados por cargo.</p>
+                    <div id="personnel-list" class="space-y-5">
                         <!-- Populated by JS -->
                     </div>
                 </div>
@@ -912,6 +955,18 @@
                     <input type="text" id="reg-auth-email" required autocomplete="username" placeholder="ej: jperez o jperez@gmail.com" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
                 </div>
                 <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Cargo en la institución</label>
+                    <select id="reg-auth-cargo" required class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                        <option value="">Seleccioná tu cargo...</option>
+                        <option value="Docente">Docente</option>
+                        <option value="Director">Director/a</option>
+                        <option value="Subdirector">Subdirector/a</option>
+                        <option value="Funcionario">Funcionario/a</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Contraseña</label>
                     <input type="password" id="reg-auth-pass" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
                 </div>
@@ -1045,6 +1100,8 @@
             else stopCamera();
 
             if (tabId === 'admin') renderAdminPanel();
+            if (tabId === 'classes') renderClasses();
+            if (tabId === 'personnel') renderPersonnel();
         }
 
         async function startCamera(videoId) {
@@ -1418,6 +1475,7 @@
             const name = document.getElementById('reg-student-name').value.trim();
             const ci = document.getElementById('reg-student-ci').value.trim();
             const grade = document.getElementById('reg-student-grade').value;
+            const category = STAFF_GRADE_VALUES.includes(grade) ? 'personal' : 'alumno';
             const studentWithSameCi = students.find(s => s.ci === ci);
 
             // Permite volver a registrar el rostro de un alumno existente (para mejorar su referencia).
@@ -1452,6 +1510,7 @@
                 if (studentWithSameCi) {
                     studentWithSameCi.name = name;
                     studentWithSameCi.grade = grade;
+                    studentWithSameCi.category = category;
                     studentWithSameCi.faceSamples = samples;
                     studentWithSameCi.faceDescriptor = centroid;
                     delete studentWithSameCi.signature;
@@ -1463,13 +1522,14 @@
                         name,
                         ci,
                         grade,
+                        category,
                         faceSamples: samples,      // 3 referencias: [{label, d:[128]}]
                         faceDescriptor: centroid,  // promedio (compatibilidad)
                         biometricVersion: 'face-api-128-v2',
                         status: 'Ausente',
                         lastRecord: 'Sin registros'
                     });
-                    showToast(`¡Alumno ${name} registrado con éxito!`, "success");
+                    showToast(`¡${category === 'personal' ? 'Registro de personal' : 'Alumno'} ${name} registrado con éxito!`, "success");
                 }
                 persistStudents();
 
@@ -1632,7 +1692,7 @@
             const tbody = document.getElementById('students-table-body');
             const searchTerm = (document.getElementById('search-student')?.value || '').toLowerCase();
 
-            const filtered = students.filter(s => s.name.toLowerCase().includes(searchTerm) || s.ci.includes(searchTerm));
+            const filtered = students.filter(s => s.category !== 'personal' && (s.name.toLowerCase().includes(searchTerm) || s.ci.includes(searchTerm)));
 
             if (filtered.length === 0) {
                 tbody.innerHTML = `
@@ -1785,6 +1845,148 @@
             `).join('');
         }
 
+        // ---------- Clases: alumnos agrupados por grado/año ----------
+        const GRADE_ORDER = ['1.er año de EMS', '2.º año de EMS', '3.er año de EMS', '7.º año', '8.º año', '9.º año'];
+        const STAFF_GRADE_VALUES = ['Director', 'Subdirector', 'Mantenimiento', 'Docente', 'Otro'];
+        function renderClasses() {
+            const container = document.getElementById('classes-list');
+            if (!container) return;
+
+            const studentsOnly = students.filter(s => s.category !== 'personal');
+            const personnelOnly = students.filter(s => s.category === 'personal');
+
+            const groupBy = (list, key) => {
+                const groups = {};
+                list.forEach(s => { const k = s[key] || 'Sin especificar'; (groups[k] = groups[k] || []).push(s); });
+                return groups;
+            };
+
+            const studentGroups = groupBy(studentsOnly, 'grade');
+            const orderedGrades = [...GRADE_ORDER.filter(g => studentGroups[g]), ...Object.keys(studentGroups).filter(g => !GRADE_ORDER.includes(g))];
+
+            const personnelGroups = groupBy(personnelOnly, 'grade');
+            const orderedCargos = [...STAFF_GRADE_VALUES.filter(c => personnelGroups[c]), ...Object.keys(personnelGroups).filter(c => !STAFF_GRADE_VALUES.includes(c))];
+
+            const renderRow = (s) => {
+                const expelled = s.status === 'Expulsado';
+                return `
+                    <div class="flex items-center justify-between gap-3 px-4 py-2.5">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold text-white truncate">${escapeHtml(s.name)}</p>
+                            <p class="text-[11px] text-gray-500">Cédula: ${escapeHtml(s.ci || '-')}</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <span class="text-[10px] px-2 py-1 rounded-full border ${s.status === 'Presente' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : s.status === 'Expulsado' ? 'bg-gray-500/10 text-gray-300 border-gray-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}">${formatAttendanceStatus(s.status)}</span>
+                            <button onclick="toggleStudentStatus('${s.id}')" class="p-1.5 rounded bg-borderbg hover:bg-gray-700 text-gray-300 transition" title="Cambiar estado"><i class="fa-solid fa-arrows-rotate text-[10px]"></i></button>
+                            ${expelled
+                                ? `<button onclick="reinstateStudent('${s.id}')" class="p-1.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition" title="Reincorporar"><i class="fa-solid fa-rotate-left text-[10px]"></i></button>`
+                                : `<button onclick="expelStudent('${s.id}')" class="p-1.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition" title="Expulsar"><i class="fa-solid fa-user-slash text-[10px]"></i></button>`}
+                            <button onclick="deleteStudent('${s.id}')" class="p-1.5 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition" title="Eliminar"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const renderGroup = (label, list, countNoun) => `
+                <div class="bg-darkbg border border-borderbg rounded-xl overflow-hidden">
+                    <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i.fa-chevron-down, i.fa-chevron-up').classList.toggle('fa-chevron-down'); this.querySelector('i.fa-chevron-down, i.fa-chevron-up').classList.toggle('fa-chevron-up');"
+                        class="w-full flex items-center justify-between gap-3 p-4 hover:bg-borderbg/40 transition text-left">
+                        <span class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-gold-500"></i> ${escapeHtml(label)}
+                        </span>
+                        <span class="flex items-center gap-3">
+                            <span class="text-[10px] text-gold-400 bg-gold-500/10 border border-gold-500/20 px-2.5 py-1 rounded-full font-semibold">${list.length} ${countNoun}${list.length === 1 ? '' : 's'}</span>
+                            <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                        </span>
+                    </button>
+                    <div class="divide-y divide-borderbg border-t border-borderbg">
+                        ${list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(renderRow).join('')}
+                    </div>
+                </div>`;
+
+            let html = '';
+
+            html += `<h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-2">Alumnos por grado</h3>`;
+            html += orderedGrades.length
+                ? `<div class="space-y-3 mb-6">${orderedGrades.map(g => renderGroup(g, studentGroups[g], 'alumno')).join('')}</div>`
+                : `<p class="text-xs text-gray-500 mb-6">Todavía no hay alumnos registrados.</p>`;
+
+            html += `<h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-2">Personal registrado por rostro</h3>`;
+            html += orderedCargos.length
+                ? `<div class="space-y-3">${orderedCargos.map(c => renderGroup(c, personnelGroups[c], 'persona')).join('')}</div>`
+                : `<p class="text-xs text-gray-500">Todavía no se registró personal por reconocimiento facial.</p>`;
+
+            container.innerHTML = html;
+        }
+
+        // ---------- Personal: cuentas registradas, agrupadas por cargo ----------
+        const CARGO_ORDER = ['Director', 'Subdirector', 'Docente', 'Funcionario', 'Mantenimiento', 'Otro'];
+        const CARGO_ICON = { Director: 'fa-user-tie', Subdirector: 'fa-user-tie', Docente: 'fa-chalkboard-user', Funcionario: 'fa-briefcase', Mantenimiento: 'fa-screwdriver-wrench', Otro: 'fa-user' };
+        let allUsersCache = [];
+
+        async function ensurePersonnelLoaded() {
+            if (!CLOUD_ENABLED) return;
+            if (isAdminUser()) { allUsersCache = adminUsers; return; } // el admin ya tiene la lista en vivo
+            try {
+                const { collection, getDocs } = fb.F;
+                const snap = await getDocs(collection(fb.db, 'users'));
+                allUsersCache = snap.docs.map(d => ({ key: d.id, ...d.data() }));
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo cargar el personal. Revisá las reglas de Firestore.', 'error');
+            }
+        }
+
+        async function renderPersonnel() {
+            const container = document.getElementById('personnel-list');
+            if (!container) return;
+
+            if (CLOUD_ENABLED) {
+                container.innerHTML = `<p class="text-xs text-gray-500">Cargando personal...</p>`;
+                await ensurePersonnelLoaded();
+            }
+
+            const list = CLOUD_ENABLED
+                ? allUsersCache.filter(u => u.status === 'approved')
+                : registeredUsers.filter(u => u.status === 'approved').map(u => ({ key: u.id, name: u.name, username: u.id, cargo: u.cargo }));
+
+            const groups = {};
+            list.forEach(u => {
+                const cargo = u.cargo || 'Otro';
+                if (!groups[cargo]) groups[cargo] = [];
+                groups[cargo].push(u);
+            });
+
+            const orderedCargos = [...CARGO_ORDER.filter(c => groups[c]), ...Object.keys(groups).filter(c => !CARGO_ORDER.includes(c))];
+
+            if (orderedCargos.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-500">Todavía no hay personal registrado y aprobado en el sistema.</p>`;
+                return;
+            }
+
+            container.innerHTML = orderedCargos.map(cargo => `
+                <div>
+                    <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-2 flex items-center gap-2">
+                        <i class="fa-solid ${CARGO_ICON[cargo] || 'fa-user'}"></i> ${escapeHtml(cargo)}
+                        <span class="text-[10px] text-gray-500 font-normal normal-case">(${groups[cargo].length})</span>
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                        ${groups[cargo].map(u => `
+                            <div class="bg-darkbg border border-borderbg rounded-xl p-3 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-gold-500/10 border border-gold-500/20 text-gold-500 flex items-center justify-center text-sm flex-shrink-0">
+                                    <i class="fa-solid ${CARGO_ICON[cargo] || 'fa-user'}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-white truncate">${escapeHtml(u.name || u.username)}</p>
+                                    <p class="text-[11px] text-gray-500 truncate">${escapeHtml(u.username || u.email || '')}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
         function toggleStaffBubble(card) {
             if (!card) return;
             const bubble = card.querySelector('.staff-speech-bubble');
@@ -1848,22 +2050,24 @@
         }
 
         function updateDashboardMetrics() {
-            animateMetric(document.getElementById('stat-total-students'), students.length);
-            animateMetric(document.getElementById('stat-present'), students.filter(s => s.status === 'Presente').length);
-            animateMetric(document.getElementById('stat-late'), students.filter(s => s.status === 'Llegada Tarde').length);
-            animateMetric(document.getElementById('stat-absent'), students.filter(s => s.status === 'Ausente').length);
+            const onlyStudents = students.filter(s => s.category !== 'personal');
+            animateMetric(document.getElementById('stat-total-students'), onlyStudents.length);
+            animateMetric(document.getElementById('stat-present'), onlyStudents.filter(s => s.status === 'Presente').length);
+            animateMetric(document.getElementById('stat-late'), onlyStudents.filter(s => s.status === 'Llegada Tarde').length);
+            animateMetric(document.getElementById('stat-absent'), onlyStudents.filter(s => s.status === 'Ausente').length);
         }
 
         function populateJustificationSelect() {
             const select = document.getElementById('just-student-select');
             if (!select) return;
 
-            if (students.length === 0) {
+            const onlyStudents = students.filter(s => s.category !== 'personal');
+            if (onlyStudents.length === 0) {
                 select.innerHTML = `<option value="">No hay alumnos registrados</option>`;
                 return;
             }
 
-            select.innerHTML = students.map(s => `
+            select.innerHTML = onlyStudents.map(s => `
                 <option value="${s.id}">${s.name} (${s.ci}) · Estado actual: ${formatAttendanceStatus(s.status)}</option>
             `).join('');
         }
@@ -2128,7 +2332,7 @@
         }
 
         // ---------- Firebase ----------
-        let fb = null, pendingName = null, unsubStudents = null, unsubUsers = null, adminUsers = [];
+        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, adminUsers = [];
         const syncedJson = new Map();
 
         async function initCloud() {
@@ -2159,19 +2363,19 @@
                     const metaRef = doc(fb.db, 'meta', 'adminCreated');
                     const metaSnap = await getDoc(metaRef);
                     const makeAdmin = !metaSnap.exists();
-                    profile = { name: pendingName || user.displayName || loginId, username: loginId, email: user.email, provider: user.providerData[0]?.providerId || 'password', role: makeAdmin ? 'admin' : 'docente', status: makeAdmin ? 'approved' : 'pending', createdAt: serverTimestamp() };
+                    profile = { name: pendingName || user.displayName || loginId, cargo: pendingCargo || 'Otro', username: loginId, email: user.email, provider: user.providerData[0]?.providerId || 'password', role: makeAdmin ? 'admin' : 'docente', status: makeAdmin ? 'approved' : 'pending', createdAt: serverTimestamp() };
                     const batch = writeBatch(fb.db); batch.set(ref, profile);
                     if (makeAdmin) batch.set(metaRef, { createdAt: serverTimestamp(), uid: user.uid });
                     await batch.commit();
                 }
-            } catch (err) { console.error(err); showToast('No se pudo verificar tu cuenta en la base de datos. Revisá las reglas de Firestore.', 'error'); pendingName = null; await fb.A.signOut(fb.auth); return; }
-            pendingName = null;
+            } catch (err) { console.error(err); showToast('No se pudo verificar tu cuenta en la base de datos. Revisá las reglas de Firestore.', 'error'); pendingName = null; pendingCargo = null; await fb.A.signOut(fb.auth); return; }
+            pendingName = null; pendingCargo = null;
             if (profile.status !== 'approved') {
                 currentUser = null; updateAuthHeader();
                 showToast(profile.status === 'rejected' ? 'El administrador rechazó tu solicitud de acceso.' : 'Tu cuenta fue creada. Un administrador tiene que aprobarla antes de que puedas ingresar.', 'error');
                 await fb.A.signOut(fb.auth); return;
             }
-            currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status };
+            currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status, cargo: profile.cargo || 'Otro' };
             closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success'); updateAuthHeader();
             startStudentsSync(); if (isAdminUser()) startAdminUsersSync();
         }
@@ -2246,7 +2450,7 @@
             if (!found) return authMsg('Usuario o contraseña incorrectos.');
             if (found.status === 'pending') return authMsg('Tu cuenta todavía no fue aprobada por un administrador.', 'info');
             if (found.status === 'rejected') return authMsg('El administrador rechazó tu solicitud de acceso.');
-            currentUser = { name: found.name, email: found.id || found.email, role: found.role || 'staff', status: found.status || 'approved' };
+            currentUser = { name: found.name, email: found.id || found.email, role: found.role || 'staff', status: found.status || 'approved', cargo: found.cargo || 'Otro' };
             localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); updateAuthHeader(); closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success');
         }
 
@@ -2255,15 +2459,17 @@
             const name = document.getElementById('reg-auth-name').value.trim();
             const id = document.getElementById('reg-auth-email').value.trim();
             const pass = document.getElementById('reg-auth-pass').value;
+            const cargo = document.getElementById('reg-auth-cargo').value;
             if (!validLoginId(id)) return authMsg('El usuario debe tener 3-30 caracteres (letras, números, . _ -) o ser un correo.');
             if (pass.length < 6) return authMsg('La contraseña debe tener al menos 6 caracteres.');
-            if (CLOUD_ENABLED) { if (!fb) return authMsg('Conectando con la base de datos, probá de nuevo en un momento.', 'info'); try { pendingName = name; await fb.A.createUserWithEmailAndPassword(fb.auth, toEmail(id), pass); } catch (err) { pendingName = null; authMsg(authErrorMessage(err)); } return; }
+            if (!cargo) return authMsg('Elegí tu cargo en la institución.');
+            if (CLOUD_ENABLED) { if (!fb) return authMsg('Conectando con la base de datos, probá de nuevo en un momento.', 'info'); try { pendingName = name; pendingCargo = cargo; await fb.A.createUserWithEmailAndPassword(fb.auth, toEmail(id), pass); } catch (err) { pendingName = null; pendingCargo = null; authMsg(authErrorMessage(err)); } return; }
             const key = id.toLowerCase();
             if (registeredUsers.some(u => (u.id || u.email || '').toLowerCase() === key)) return authMsg('Ese usuario o correo ya está registrado.');
             const isFirstEver = registeredUsers.length === 0;
-            const newUser = { name, id: key, hash: await sha256(pass), role: isFirstEver ? 'admin' : 'docente', status: isFirstEver ? 'approved' : 'pending' };
+            const newUser = { name, id: key, cargo, hash: await sha256(pass), role: isFirstEver ? 'admin' : 'docente', status: isFirstEver ? 'approved' : 'pending' };
             registeredUsers.push(newUser); localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers));
-            if (isFirstEver) { currentUser = { name, email: key, role: 'admin', status: 'approved' }; localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); updateAuthHeader(); closeAuthModal(); showToast('Cuenta creada. Sos el administrador del sistema.', 'success'); }
+            if (isFirstEver) { currentUser = { name, email: key, role: 'admin', status: 'approved', cargo }; localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); updateAuthHeader(); closeAuthModal(); showToast('Cuenta creada. Sos el administrador del sistema.', 'success'); }
             else { authMsg('Cuenta creada. Un administrador tiene que aprobarla antes de que puedas ingresar.', 'info'); }
         }
 
