@@ -987,7 +987,6 @@
             { name: "Alfonso Álvarez", role: "Tutor de 1.er año de EMS", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
             { name: "Juan Trumbotti", role: "Adscrito de 8.º año", dept: "Adscripción", icon: "fa-clipboard-user" },
             { name: "Agustín Curbelo", role: "Tutor de 9.º año", dept: "Tutoría de educación media", icon: "fa-user-gear" },
-            { name: "Juan Martín", role: "Adscrito de 7.º año", dept: "Adscripción", icon: "fa-clipboard-list" },
             { name: "Juan Moreira", role: "Tutor de 7.º y 8.º año", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" }
         ];
 
@@ -1051,6 +1050,7 @@
             updateDashboardMetrics();
             initAuthUi();
             updateAuthHeader();
+            if (!CLOUD_ENABLED) rolloverDay();
             initCloud();
             populateJustificationSelect();
             switchTab('dashboard');
@@ -1527,6 +1527,8 @@
                         faceDescriptor: centroid,  // promedio (compatibilidad)
                         biometricVersion: 'face-api-128-v2',
                         status: 'Ausente',
+                        statusDate: getLocalDateKey(),
+                        createdDate: getLocalDateKey(),
                         lastRecord: 'Sin registros'
                     });
                     showToast(`¡${category === 'personal' ? 'Registro de personal' : 'Alumno'} ${name} registrado con éxito!`, "success");
@@ -1660,9 +1662,10 @@
                 date: todayKey,
                 time: currentHours,
                 type: scanType,
+                ...(scanType === 'Entrada' ? { status: newStatus } : {}),
                 ...(scanType === 'Salida' && currentHours < DAILY_EXIT_TIME ? { justifiedEarlyExit: true } : {})
             });
-            if (scanType === 'Entrada') bestMatch.status = newStatus;
+            if (scanType === 'Entrada') { bestMatch.status = newStatus; bestMatch.statusDate = todayKey; }
             bestMatch.lastRecord = `${now.toLocaleDateString()} ${currentHours} (${scanType}${scanType === 'Salida' && currentHours < DAILY_EXIT_TIME ? ' temprana justificada' : ''})`;
 
             persistStudents();
@@ -1712,6 +1715,7 @@
                                     s.status === 'Expulsado' ? 'bg-gray-500/10 text-gray-300 border-gray-500/30' :
                                     'bg-rose-500/10 text-rose-400 border-rose-500/20';
                 const expelled = s.status === 'Expulsado';
+                const absences = (Array.isArray(s.history) ? s.history : []).filter(h => h && h.status === 'Ausente').length;
 
                 return `
                     <tr class="hover:bg-borderbg/50 transition ${expelled ? 'opacity-60' : ''}">
@@ -1723,7 +1727,7 @@
                                 ${formatAttendanceStatus(s.status)}
                             </span>
                         </td>
-                        <td class="p-3.5 text-gray-400">${s.lastRecord}</td>
+                        <td class="p-3.5 text-gray-400">${s.lastRecord}${absences ? `<div class="text-[10px] text-rose-400 mt-0.5">${absences} ausencia${absences > 1 ? 's' : ''} registrada${absences > 1 ? 's' : ''}</div>` : ''}</td>
                         <td class="p-3.5 text-right flex items-center justify-end gap-2">
                             <button onclick="toggleStudentStatus('${s.id}')" class="p-1.5 rounded bg-borderbg hover:bg-gray-700 text-gray-300 transition" title="Cambiar Estado">
                                 <i class="fa-solid fa-arrows-rotate"></i>
@@ -1751,6 +1755,7 @@
             if (!confirm(`¿Confirmás expulsar a ${student.name}? No va a poder registrar asistencia hasta que lo reincorpores.`)) return;
 
             student.status = 'Expulsado';
+            student.statusDate = getLocalDateKey();
             student.lastRecord = `Expulsado: ${new Date().toLocaleDateString()}`;
             persistStudents();
             renderStudentsTable();
@@ -1765,6 +1770,7 @@
             if (!student) return;
 
             student.status = 'Ausente';
+            student.statusDate = getLocalDateKey();
             student.lastRecord = `Reincorporado: ${new Date().toLocaleDateString()}`;
             persistStudents();
             renderStudentsTable();
@@ -1785,6 +1791,8 @@
             const statuses = ['Ausente', 'Presente', 'Llegada Tarde', 'Justificado'];
             const currentIdx = statuses.indexOf(student.status);
             student.status = statuses[(currentIdx + 1) % statuses.length];
+            student.statusDate = getLocalDateKey();
+            if (student.status === 'Justificado') student.justifiedDate = getLocalDateKey();
             student.lastRecord = `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0,5)}`;
 
             persistStudents();
@@ -2104,6 +2112,8 @@
                 showToast(`Salida temprana justificada para ${student.name}. Ya puede registrar su salida hoy.`, "success");
             } else {
                 student.status = 'Justificado';
+                student.statusDate = getLocalDateKey(now);
+                student.justifiedDate = getLocalDateKey(now);
                 student.lastRecord = `Justificado: ${now.toLocaleDateString()}`;
                 persistStudents();
                 renderStudentsTable();
@@ -2382,13 +2392,99 @@
 
         function renderAllStudents() { renderStudentsTable(); updateDashboardMetrics(); populateJustificationSelect(); }
 
+        // ============================================================
+        // REINICIO DIARIO DE LA LISTA
+        // Cuando empieza un día nuevo:
+        //  1) se cierra el último día en que se pasó lista: quien no fue detectado
+        //     queda como "Ausente" en su historial (student.history);
+        //  2) el estado de todos vuelve a "Ausente" para empezar la lista de hoy.
+        // Los días sin lista (fines de semana, feriados) no generan ausencias.
+        // ============================================================
+        function closeAttendanceDays() {
+            const todayKey = getLocalDateKey();
+            const onTimeLimit = document.getElementById('time-limit-on-time')?.value || '08:00';
+
+            // Días en que se pasó lista: hubo al menos una entrada o un estado cargado
+            const listDays = new Set();
+            students.forEach(st => {
+                (Array.isArray(st.attendanceScans) ? st.attendanceScans : []).forEach(sc => {
+                    if (sc && sc.type === 'Entrada' && sc.date) listDays.add(sc.date);
+                });
+                if (st.statusDate && ['Presente', 'Llegada Tarde', 'Justificado'].includes(st.status)) listDays.add(st.statusDate);
+                if (st.justifiedDate) listDays.add(st.justifiedDate);
+            });
+            const pastDays = [...listDays].filter(d => d < todayKey).sort();
+
+            let changed = false;
+            students.forEach(st => {
+                if (st.status === 'Expulsado') return;
+                const scans = Array.isArray(st.attendanceScans) ? st.attendanceScans : [];
+
+                // Registros antiguos: deducir desde cuándo existe el alumno y la fecha de su estado
+                if (!st.createdDate) {
+                    const m = /^STU-(\d{10,})$/.exec(st.id || '');
+                    const firstScan = scans.filter(x => x && x.date).map(x => x.date).sort()[0];
+                    st.createdDate = m ? getLocalDateKey(new Date(Number(m[1]))) : (firstScan || todayKey);
+                    changed = true;
+                }
+                if (!st.statusDate) {
+                    const lastScan = scans.filter(x => x && x.date).map(x => x.date).sort().pop();
+                    st.statusDate = lastScan || todayKey;
+                    changed = true;
+                }
+
+                // 1) Cerrar los días pasados en que se pasó lista
+                const alreadyClosed = st.dayClosed || '';
+                let lastClosed = alreadyClosed;
+                pastDays.forEach(d => {
+                    if (d <= alreadyClosed || d < st.createdDate) return;
+                    const entry = scans.find(x => x && x.date === d && x.type === 'Entrada');
+                    let result;
+                    if (st.statusDate === d) result = st.status;
+                    else if (entry) result = entry.status || (entry.time > onTimeLimit ? 'Llegada Tarde' : 'Presente');
+                    else if (st.justifiedDate === d) result = 'Justificado';
+                    else result = 'Ausente';
+                    if (!Array.isArray(st.history)) st.history = [];
+                    if (!st.history.some(h => h && h.date === d)) st.history.push({ date: d, status: result });
+                    lastClosed = d;
+                });
+                if (lastClosed !== alreadyClosed) { st.dayClosed = lastClosed; changed = true; }
+                if (Array.isArray(st.history) && st.history.length > 200) st.history = st.history.slice(-200);
+
+                // 2) Reiniciar el estado para el día de hoy
+                if (st.statusDate < todayKey && st.status !== 'Ausente') {
+                    st.status = 'Ausente';
+                    st.statusDate = todayKey;
+                    changed = true;
+                }
+            });
+            return changed;
+        }
+
+        let lastRolloverDay = getLocalDateKey();
+        function rolloverDay() {
+            if (!Array.isArray(students) || !students.length) return false;
+            const changed = closeAttendanceDays();
+            if (!changed) return false;
+            // En modo nube solo guardan las cuentas con permiso; el resto ve el reinicio sin escribir.
+            const canSave = CLOUD_ENABLED ? !!(fb && currentUser?.uid && canManageStudents()) : true;
+            if (canSave) persistStudents();
+            renderAllStudents();
+            return true;
+        }
+        // Detecta el cambio de día (también si la página queda abierta toda la noche)
+        setInterval(() => {
+            const key = getLocalDateKey();
+            if (key !== lastRolloverDay) { lastRolloverDay = key; rolloverDay(); }
+        }, 30000);
+
         async function startStudentsSync() {
             const { collection, getDocs, onSnapshot } = fb.F;
             const col = collection(fb.db, 'students');
             try {
                 const first = await getDocs(col);
                 if (first.empty && students.length) { await pushStudents(); showToast('Datos locales migrados a la base de datos.', 'success'); }
-                unsubStudents = onSnapshot(col, snap => { students = snap.docs.map(d => d.data()); syncedJson.clear(); students.forEach(s => syncedJson.set(s.id, JSON.stringify(s))); localStorage.setItem('veltrix_students', JSON.stringify(students)); renderAllStudents(); });
+                unsubStudents = onSnapshot(col, snap => { students = snap.docs.map(d => d.data()); syncedJson.clear(); students.forEach(s => syncedJson.set(s.id, JSON.stringify(s))); localStorage.setItem('veltrix_students', JSON.stringify(students)); if (!rolloverDay()) renderAllStudents(); });
             } catch (err) { console.error(err); showToast('Sin acceso a la base de datos. Revisá las reglas de Firestore.', 'error'); }
         }
 
