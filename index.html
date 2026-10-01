@@ -128,6 +128,8 @@
         .staff-card:nth-child(5) { animation-delay: 220ms; }
         .staff-card:nth-child(6) { animation-delay: 275ms; }
         .staff-card:nth-child(7) { animation-delay: 330ms; }
+        .staff-card:nth-child(8) { animation-delay: 385ms; }
+        .staff-card:nth-child(9) { animation-delay: 440ms; }
         .stat-card {
             transition: transform 320ms cubic-bezier(.16, 1, .3, 1), border-color 260ms ease, box-shadow 320ms ease;
         }
@@ -708,7 +710,7 @@
                     <div class="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                         <div>
                             <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-user-shield text-gold-500"></i> Equipo directivo, tutores y adscritos
+                                <i class="fa-solid fa-user-shield text-gold-500"></i> Equipo directivo, tutores, adscritos y psicólogos
                             </h2>
                             <p class="text-xs text-gray-400 mt-2 max-w-2xl">Conocé a las personas que orientan, coordinan y acompañan la vida diaria de Los Pinos. Cada referente aporta desde su área para que la comunidad educativa avance en equipo.</p>
                         </div>
@@ -988,11 +990,13 @@
         const PRELOADED_STAFF = [
             { name: "Pedro Presno", role: "Director general", dept: "Dirección general", icon: "fa-user-tie" },
             { name: "María Jesús López", role: "Directora del Liceo Técnico", dept: "Dirección académica", icon: "fa-graduation-cap" },
-            { name: "José Lezama", role: "Director de orientación", dept: "Orientación estudiantil", icon: "fa-compass" },
+            { name: "José Marcos Lezama", role: "Director de orientación", dept: "Orientación estudiantil", icon: "fa-compass" },
             { name: "Alfonso Álvarez", role: "Tutor de 1.er año de EMS", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
             { name: "Juan Trombotti", role: "Tutor de 9.º año", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
             { name: "Agustín Curbelo", role: "Adscrito", dept: "Adscripción", icon: "fa-clipboard-user" },
-            { name: "Juan Moreira", role: "Tutor de 7.º y 8.º año", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" }
+            { name: "Juan Moreira", role: "Tutor de 7.º y 8.º año", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
+            { name: "Alfredo Flores", role: "Psicólogo de 1.er año de EMS y 9.º año", dept: "Psicología", icon: "fa-brain" },
+            { name: "Leo Torres", role: "Psicólogo de 7.º y 8.º año", dept: "Psicología", icon: "fa-brain" }
         ];
 
         // ============================================================
@@ -2187,7 +2191,7 @@
                 return "Podés ajustar los límites de entrada en el Panel principal. Los valores iniciales son las 08:00 para entrar a tiempo y las 08:20 como límite de llegada tarde.";
             }
             if (query.includes('director') || query.includes('autoridad') || query.includes('pedro')) {
-                return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Lezama, director de orientación; y los tutores y adscritos que figuran en esta sección.";
+                return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Marcos Lezama, director de orientación; y los tutores, adscritos y psicólogos que figuran en esta sección.";
             }
             return "Soy Nexus IA y puedo ayudarte con dudas técnicas, el registro de asistencia y las funciones del sistema Veltrix.";
         }
