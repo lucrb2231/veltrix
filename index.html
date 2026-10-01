@@ -545,6 +545,11 @@
                             <label class="block text-xs font-semibold text-gray-300 mb-1">Límite para registrar una llegada tarde</label>
                             <input type="time" id="time-limit-late" value="08:20" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
                         </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Hora de cierre de lista (quien no pasó por el escaneo facial queda ausente)</label>
+                            <input type="time" id="time-limit-absent" value="12:00" onchange="checkAbsentees(true)" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                            <p class="text-[10px] text-gray-500 mt-1">De lunes a viernes, pasada esta hora, todo alumno sin entrada registrada hoy (y sin justificación) se marca como ausente y la ausencia queda en su historial. Si llega después y escanea su rostro, la ausencia se anula.</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -983,10 +988,10 @@
         const PRELOADED_STAFF = [
             { name: "Pedro Presno", role: "Director general", dept: "Dirección general", icon: "fa-user-tie" },
             { name: "María Jesús López", role: "Directora del Liceo Técnico", dept: "Dirección académica", icon: "fa-graduation-cap" },
-            { name: "José Marcos", role: "Director de orientación", dept: "Orientación estudiantil", icon: "fa-compass" },
+            { name: "José Lezama", role: "Director de orientación", dept: "Orientación estudiantil", icon: "fa-compass" },
             { name: "Alfonso Álvarez", role: "Tutor de 1.er año de EMS", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
-            { name: "Juan Trumbotti", role: "Adscrito de 8.º año", dept: "Adscripción", icon: "fa-clipboard-user" },
-            { name: "Agustín Curbelo", role: "Tutor de 9.º año", dept: "Tutoría de educación media", icon: "fa-user-gear" },
+            { name: "Juan Trombotti", role: "Tutor de 9.º año", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" },
+            { name: "Agustín Curbelo", role: "Adscrito", dept: "Adscripción", icon: "fa-clipboard-user" },
             { name: "Juan Moreira", role: "Tutor de 7.º y 8.º año", dept: "Tutoría de educación media", icon: "fa-chalkboard-user" }
         ];
 
@@ -1050,7 +1055,7 @@
             updateDashboardMetrics();
             initAuthUi();
             updateAuthHeader();
-            if (!CLOUD_ENABLED) rolloverDay();
+            if (!CLOUD_ENABLED) { rolloverDay(); checkAbsentees(); }
             initCloud();
             populateJustificationSelect();
             switchTab('dashboard');
@@ -1485,6 +1490,7 @@
 
             setFaceButtonBusy(true);
             scanBusy = true;
+            let successMsg = '';
             try {
                 const samples = await captureEnrollmentSamples('reg-video');
                 const centroid = normalizeDescriptor(meanVector(samples.map(s => s.d)));
@@ -1515,7 +1521,7 @@
                     studentWithSameCi.faceDescriptor = centroid;
                     delete studentWithSameCi.signature;
                     studentWithSameCi.biometricVersion = 'face-api-128-v2';
-                    showToast(`Biometría de ${name} actualizada correctamente.`, "success");
+                    successMsg = `Biometría de ${name} actualizada correctamente.`;
                 } else {
                     students.push({
                         id: 'STU-' + Date.now(),
@@ -1531,9 +1537,15 @@
                         createdDate: getLocalDateKey(),
                         lastRecord: 'Sin registros'
                     });
-                    showToast(`¡${category === 'personal' ? 'Registro de personal' : 'Alumno'} ${name} registrado con éxito!`, "success");
+                    successMsg = `¡${category === 'personal' ? 'Registro de personal' : 'Alumno'} ${name} registrado con éxito!`;
                 }
-                persistStudents();
+                const saved = await persistStudents();
+                if (CLOUD_ENABLED) {
+                    if (saved) showToast(successMsg + ' Guardado en la base de datos.', "success");
+                    else showToast(`${name} quedó guardado solo en este navegador: falló el guardado en la base de datos. Se reintentará automáticamente.`, "error");
+                } else {
+                    showToast(successMsg, "success");
+                }
 
                 document.getElementById('student-reg-form').reset();
                 renderStudentsTable();
@@ -1665,7 +1677,7 @@
                 ...(scanType === 'Entrada' ? { status: newStatus } : {}),
                 ...(scanType === 'Salida' && currentHours < DAILY_EXIT_TIME ? { justifiedEarlyExit: true } : {})
             });
-            if (scanType === 'Entrada') { bestMatch.status = newStatus; bestMatch.statusDate = todayKey; }
+            if (scanType === 'Entrada') { bestMatch.status = newStatus; bestMatch.statusDate = todayKey; clearAutoAbsence(bestMatch, todayKey); }
             bestMatch.lastRecord = `${now.toLocaleDateString()} ${currentHours} (${scanType}${scanType === 'Salida' && currentHours < DAILY_EXIT_TIME ? ' temprana justificada' : ''})`;
 
             persistStudents();
@@ -1792,6 +1804,7 @@
             const currentIdx = statuses.indexOf(student.status);
             student.status = statuses[(currentIdx + 1) % statuses.length];
             student.statusDate = getLocalDateKey();
+            clearAutoAbsence(student, getLocalDateKey());
             if (student.status === 'Justificado') student.justifiedDate = getLocalDateKey();
             student.lastRecord = `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0,5)}`;
 
@@ -2114,6 +2127,7 @@
                 student.status = 'Justificado';
                 student.statusDate = getLocalDateKey(now);
                 student.justifiedDate = getLocalDateKey(now);
+                clearAutoAbsence(student, getLocalDateKey(now));
                 student.lastRecord = `Justificado: ${now.toLocaleDateString()}`;
                 persistStudents();
                 renderStudentsTable();
@@ -2173,7 +2187,7 @@
                 return "Podés ajustar los límites de entrada en el Panel principal. Los valores iniciales son las 08:00 para entrar a tiempo y las 08:20 como límite de llegada tarde.";
             }
             if (query.includes('director') || query.includes('autoridad') || query.includes('pedro')) {
-                return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Marcos, director de orientación; y los tutores y adscritos que figuran en esta sección.";
+                return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Lezama, director de orientación; y los tutores y adscritos que figuran en esta sección.";
             }
             return "Soy Nexus IA y puedo ayudarte con dudas técnicas, el registro de asistencia y las funciones del sistema Veltrix.";
         }
@@ -2461,6 +2475,57 @@
             return changed;
         }
 
+        // ============================================================
+        // CIERRE DE LISTA DEL DÍA
+        // Pasada la hora de cierre (lunes a viernes), quien no pasó por el
+        // escaneo facial (sin entrada hoy) ni tiene justificación queda
+        // "Ausente" y se anota en su historial (marca auto:true).
+        // ============================================================
+        function clearAutoAbsence(st, dateKey) {
+            if (Array.isArray(st.history)) st.history = st.history.filter(h => !(h && h.date === dateKey && h.auto));
+        }
+
+        function checkAbsentees(force = false) {
+            if (!Array.isArray(students) || !students.length) return false;
+            const now = new Date();
+            const day = now.getDay();
+            if (day === 0 || day === 6) return false; // fines de semana: no hay lista
+            const cutoff = document.getElementById('time-limit-absent')?.value || '12:00';
+            const hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            if (hhmm < cutoff) return false;
+
+            const todayKey = getLocalDateKey(now);
+            let changed = false;
+            students.forEach(st => {
+                if (st.category === 'personal' || st.status === 'Expulsado') return;
+                if (st.createdDate && st.createdDate >= todayKey) return; // registrado hoy: aún no corresponde
+                const scans = Array.isArray(st.attendanceScans) ? st.attendanceScans : [];
+                const cameIn = scans.some(x => x && x.date === todayKey && x.type === 'Entrada');
+                const justified = st.justifiedDate === todayKey || (st.status === 'Justificado' && st.statusDate === todayKey);
+                if (cameIn || justified) return;
+
+                if (!Array.isArray(st.history)) st.history = [];
+                if (!st.history.some(h => h && h.date === todayKey)) {
+                    st.history.push({ date: todayKey, status: 'Ausente', auto: true });
+                    changed = true;
+                }
+                if (st.status !== 'Ausente' || st.statusDate !== todayKey) {
+                    st.status = 'Ausente';
+                    st.statusDate = todayKey;
+                    changed = true;
+                }
+                if (changed && !String(st.lastRecord || '').startsWith('Ausente')) {
+                    st.lastRecord = `Ausente (no pasó lista): ${now.toLocaleDateString()}`;
+                }
+            });
+            if (!changed) return false;
+            const canSave = CLOUD_ENABLED ? !!(fb && currentUser?.uid && canManageStudents()) : true;
+            if (canSave) persistStudents();
+            renderAllStudents();
+            if (force) showToast('Lista cerrada: los alumnos sin escaneo quedaron como ausentes.', 'success');
+            return true;
+        }
+
         let lastRolloverDay = getLocalDateKey();
         function rolloverDay() {
             if (!Array.isArray(students) || !students.length) return false;
@@ -2476,6 +2541,7 @@
         setInterval(() => {
             const key = getLocalDateKey();
             if (key !== lastRolloverDay) { lastRolloverDay = key; rolloverDay(); }
+            checkAbsentees();
         }, 30000);
 
         async function startStudentsSync() {
@@ -2483,12 +2549,44 @@
             const col = collection(fb.db, 'students');
             try {
                 const first = await getDocs(col);
-                if (first.empty && students.length) { await pushStudents(); showToast('Datos locales migrados a la base de datos.', 'success'); }
-                unsubStudents = onSnapshot(col, snap => { students = snap.docs.map(d => d.data()); syncedJson.clear(); students.forEach(s => syncedJson.set(s.id, JSON.stringify(s))); localStorage.setItem('veltrix_students', JSON.stringify(students)); if (!rolloverDay()) renderAllStudents(); });
+                // Fusionar: lo que ya está en la base manda; los alumnos que solo existen en este
+                // navegador (registrados sin conexión o antes de iniciar sesión) se suben a la base.
+                const serverList = first.docs.map(d => d.data());
+                const serverIds = new Set(serverList.map(s => s.id));
+                const serverCis = new Set(serverList.map(s => s.ci));
+                const localOnly = (Array.isArray(students) ? students : []).filter(s => s && !serverIds.has(s.id) && !serverCis.has(s.ci));
+                syncedJson.clear();
+                serverList.forEach(s => syncedJson.set(s.id, JSON.stringify(s)));
+                students = serverList.concat(localOnly);
+                if (localOnly.length) {
+                    const ok = await persistStudents();
+                    if (ok) showToast(`${localOnly.length} alumno(s) guardado(s) en la base de datos.`, 'success');
+                }
+                unsubStudents = onSnapshot(col, snap => {
+                    const list = snap.docs.map(d => d.data());
+                    const ids = new Set(list.map(s => s.id));
+                    // Alumnos que todavía no se pudieron subir: se conservan y se reintenta el guardado.
+                    const pending = students.filter(s => s && !ids.has(s.id) && !syncedJson.has(s.id));
+                    syncedJson.clear();
+                    list.forEach(s => syncedJson.set(s.id, JSON.stringify(s)));
+                    students = list.concat(pending);
+                    localStorage.setItem('veltrix_students', JSON.stringify(students));
+                    if (pending.length && canManageStudents()) persistStudents();
+                    const rolled = rolloverDay(); const marked = checkAbsentees();
+                    if (!rolled && !marked) renderAllStudents();
+                });
             } catch (err) { console.error(err); showToast('Sin acceso a la base de datos. Revisá las reglas de Firestore.', 'error'); }
         }
 
-        async function pushStudents() {
+        // Los envíos se hacen de a uno (en fila) para que dos guardados seguidos no se pisen.
+        let pushChain = Promise.resolve();
+        function pushStudents() {
+            const run = pushChain.then(doPushStudents);
+            pushChain = run.catch(() => {});
+            return run;
+        }
+
+        async function doPushStudents() {
             const { writeBatch, doc } = fb.F; const ops = []; const ids = new Set(students.map(s => s.id));
             students.forEach(s => { const json = JSON.stringify(s); if (syncedJson.get(s.id) !== json) ops.push(b => b.set(doc(fb.db, 'students', s.id), JSON.parse(json))); });
             [...syncedJson.keys()].filter(id => !ids.has(id)).forEach(id => ops.push(b => b.delete(doc(fb.db, 'students', id))));
@@ -2496,9 +2594,13 @@
             syncedJson.clear(); students.forEach(s => syncedJson.set(s.id, JSON.stringify(s)));
         }
 
-        function persistStudents() {
+        // Guarda en este navegador y en la base de datos. Devuelve una promesa: true si quedó guardado.
+        async function persistStudents() {
             localStorage.setItem('veltrix_students', JSON.stringify(students));
-            if (fb && currentUser?.uid) { pushStudents().catch(err => { console.error(err); showToast('No se pudo guardar en la base de datos.', 'error'); }); }
+            if (!CLOUD_ENABLED) return true;
+            if (!(fb && currentUser?.uid)) return false;
+            try { await pushStudents(); return true; }
+            catch (err) { console.error(err); showToast('No se pudo guardar en la base de datos. Se reintentará en el próximo cambio.', 'error'); return false; }
         }
 
         async function startAdminUsersSync() {
