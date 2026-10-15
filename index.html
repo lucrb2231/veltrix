@@ -391,7 +391,13 @@
             </div>
 
             <!-- Botón de sesión (lo rellena updateAuthHeader) -->
-            <div id="auth-header-btn" class="flex items-center"></div>
+            <div class="flex items-center gap-2">
+                <button id="agenda-bell" onclick="switchTab('agenda')" title="Agenda y notificaciones" class="relative w-9 h-9 rounded-xl bg-borderbg hover:bg-gold-500/20 hover:text-gold-500 text-gray-300 border border-borderbg flex items-center justify-center transition">
+                    <i class="fa-solid fa-bell text-sm"></i>
+                    <span id="agenda-bell-badge" class="hidden absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">0</span>
+                </button>
+                <div id="auth-header-btn" class="flex items-center"></div>
+            </div>
         </div>
     </header>
 
@@ -432,13 +438,18 @@
                     <i class="fa-solid fa-file-signature w-5 text-gold-500"></i>
                     Justificación de faltas
                 </button>
+                <button onclick="switchTab('agenda')" id="nav-agenda" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
+                    <i class="fa-solid fa-calendar-days w-5 text-gold-500"></i>
+                    Agenda
+                    <span id="agenda-nav-badge" class="hidden ml-auto bg-gold-500 text-darkbg text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">0</span>
+                </button>
                 
                 <div class="my-1 border-t border-borderbg"></div>
                 
-                <!-- Nexus IA navigation -->
+                <!-- AIRA IA navigation -->
                 <button onclick="switchTab('nexus-ai')" id="nav-nexus-ai" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left w-full border border-gold-500/20 bg-gold-500/5 text-gold-500 hover:bg-gold-500/10">
                     <i class="fa-solid fa-robot w-5"></i>
-                    Asistente de Nexus IA
+                    Asistente AIRA IA
                 </button>
                 
                 <button onclick="switchTab('about')" id="nav-about" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left w-full hover:bg-borderbg">
@@ -777,11 +788,11 @@
             <section id="tab-nexus-ai" class="tab-content space-y-6 hidden">
                 <div class="bg-cardbg border border-borderbg rounded-2xl p-6 flex flex-col h-[600px] glow-gold">
                     
-                    <!-- Nexus IA Branding Banner -->
+                    <!-- AIRA IA Branding Banner -->
                     <div class="mb-4 pb-4 border-b border-borderbg flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-darkbg via-cardbg to-borderbg border border-gold-500/50 p-2 flex items-center justify-center shadow-lg shadow-gold-500/10">
-                                <!-- Metallic Nexus IA Emblem SVG -->
+                                <!-- Metallic AIRA IA Emblem SVG -->
                                 <svg viewBox="0 0 100 100" class="w-full h-full">
                                     <path d="M20,20 L80,80 M80,20 L20,80" stroke="#FFD700" stroke-width="14" stroke-linecap="round" />
                                     <path d="M50,15 L85,50 L50,85 L15,50 Z" fill="none" stroke="#FFE156" stroke-width="6" />
@@ -790,10 +801,10 @@
                             </div>
                             <div>
                                 <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
-                                    NEXUS <span class="text-gold-500">IA</span>
+                                    AIRA <span class="text-gold-500">IA</span>
                                     <span class="text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full font-mono">SOLUCIONES INNOVADORAS</span>
                                 </h2>
-                                <p class="text-xs text-gray-400">Asistente inteligente de soporte y resolución para Veltrix</p>
+                                <p class="text-xs text-gray-400"><strong class="text-gold-500/90">A.I.R.A.</strong> — Asistente Inteligente de Reconocimiento y Asistencia</p>
                             </div>
                         </div>
                             <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold">
@@ -804,11 +815,11 @@
                     <!-- Chat Box -->
                     <div id="ai-chat-box" class="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
                         <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-gold-500 text-darkbg flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
-                                N-IA
+                            <div class="w-8 h-8 rounded-lg bg-gold-500 text-darkbg flex items-center justify-center font-extrabold text-[9px] flex-shrink-0">
+                                AIRA
                             </div>
                             <div class="bg-darkbg border border-borderbg rounded-2xl p-4 text-xs text-gray-300 max-w-xl">
-                                ¡Hola! Soy <strong>Nexus IA</strong>, el módulo inteligente integrado en Veltrix Smart System. Puedo orientarte sobre los horarios, la calibración biométrica de la cámara y la información institucional del Centro Educativo Los Pinos. ¿Qué querés consultar?
+                                ¡Hola! Soy <strong>AIRA IA</strong> (<em>Asistente Inteligente de Reconocimiento y Asistencia</em>), el módulo inteligente integrado en Veltrix Smart System. Puedo responder tus preguntas sobre el sistema, el reconocimiento biométrico, los horarios y la información del Centro Educativo Los Pinos. También puedo <strong>agendarte eventos y recordatorios</strong>: probá escribiendo algo como <em>“agendame reunión mañana a las 10:00”</em>. ¿En qué te ayudo?
                             </div>
                         </div>
                     </div>
@@ -818,8 +829,11 @@
                         <button onclick="askPreset('¿Cómo funciona el reconocimiento biométrico?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
                             ¿Cómo funciona el reconocimiento facial?
                         </button>
-                        <button onclick="askPreset('¿Quiénes son los directores precargados?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
-                            ¿Quiénes son las autoridades?
+                        <button onclick="askPreset('Agendame una reunión mañana a las 10:00')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            Agendame un evento
+                        </button>
+                        <button onclick="askPreset('¿Qué significan las siglas AIRA?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            ¿Qué significa AIRA?
                         </button>
                         <button onclick="askPreset('¿Cómo cambio el margen de tiempo de entrada?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
                             ¿Cómo ajustar horarios?
@@ -828,12 +842,64 @@
 
                     <!-- Input Form -->
                     <form onsubmit="handleAiChat(event)" class="flex gap-2">
-                        <input type="text" id="ai-user-input" placeholder="Pregunta algo a Nexus IA..." required class="flex-1 bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-gold-500">
+                        <input type="text" id="ai-user-input" placeholder="Preguntá o pedí algo a AIRA IA..." required class="flex-1 bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-gold-500">
                         <button type="submit" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-6 py-3 rounded-xl text-xs transition flex items-center gap-2">
                             <span>Enviar</span>
                             <i class="fa-solid fa-paper-plane"></i>
                         </button>
                     </form>
+                </div>
+            </section>
+
+            <!-- AGENDA TAB -->
+            <section id="tab-agenda" class="tab-content space-y-6 hidden">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <div class="mb-5 flex items-center justify-between border-b border-borderbg pb-4 flex-wrap gap-3">
+                        <div>
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-days text-gold-500"></i> Agenda
+                            </h2>
+                            <p class="text-xs text-gray-400 mt-1">Organizá tus eventos personales y consultá la agenda pública de la institución. También podés pedirle a <strong class="text-gold-500">AIRA IA</strong> que agende por vos.</p>
+                        </div>
+                        <button onclick="switchTab('nexus-ai')" class="bg-gold-500/10 hover:bg-gold-500/20 text-gold-500 border border-gold-500/30 text-[11px] font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition">
+                            <i class="fa-solid fa-robot"></i> Pedir a AIRA IA
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Agenda personal -->
+                        <div class="bg-darkbg border border-borderbg rounded-2xl p-5">
+                            <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-1 flex items-center gap-2"><i class="fa-solid fa-user-clock"></i> Mi agenda personal</h3>
+                            <p class="text-[11px] text-gray-500 mb-4">Eventos privados que solo vos ves. El sistema te avisa cuando se acercan.</p>
+                            <form onsubmit="handleAddPersonalEvent(event)" class="space-y-3 mb-4">
+                                <input type="text" id="agenda-p-title" placeholder="Título del evento" required class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="date" id="agenda-p-date" required class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                    <input type="time" id="agenda-p-time" required class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                </div>
+                                <input type="text" id="agenda-p-desc" placeholder="Nota o detalle (opcional)" class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                <button type="submit" class="w-full bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> Agregar evento personal</button>
+                            </form>
+                            <div id="agenda-personal-list" class="space-y-2"></div>
+                        </div>
+
+                        <!-- Agenda pública -->
+                        <div class="bg-darkbg border border-borderbg rounded-2xl p-5">
+                            <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-1 flex items-center gap-2"><i class="fa-solid fa-bullhorn"></i> Agenda pública institucional</h3>
+                            <p class="text-[11px] text-gray-500 mb-4">Eventos para toda la institución. Solo los usuarios de <strong>rango alto</strong> (Administrador/Coordinador) pueden crearlos o modificarlos; todos reciben la notificación.</p>
+                            <form id="agenda-public-form" onsubmit="handleAddPublicEvent(event)" class="space-y-3 mb-4 hidden">
+                                <input type="text" id="agenda-g-title" placeholder="Título del evento público" class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="date" id="agenda-g-date" class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                    <input type="time" id="agenda-g-time" class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                </div>
+                                <input type="text" id="agenda-g-desc" placeholder="Nota o detalle (opcional)" class="w-full bg-cardbg border border-borderbg rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                                <button type="submit" class="w-full bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2"><i class="fa-solid fa-bullhorn"></i> Publicar evento para todos</button>
+                            </form>
+                            <div id="agenda-public-locked" class="hidden mb-4 text-[11px] rounded-xl px-3 py-2.5 border border-borderbg bg-cardbg text-gray-400 flex items-center gap-2"><i class="fa-solid fa-lock text-gold-500"></i> Solo los usuarios de rango alto pueden crear o modificar eventos públicos. Podés verlos y recibirás las notificaciones.</div>
+                            <div id="agenda-public-list" class="space-y-2"></div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -911,14 +977,14 @@
 
             <div class="flex items-center gap-3 mb-6">
               <div class="w-10 h-10 shrink-0 rounded-xl bg-neutral-900 border border-amber-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(255,215,0,0.2)]">
-                <i class="fa-solid fa-robot text-gold-500 text-lg" aria-label="Nexus IA"></i>
+                <i class="fa-solid fa-robot text-gold-500 text-lg" aria-label="AIRA IA"></i>
               </div>
               <div>
                 <h3 class="font-bold text-white text-base leading-tight flex items-center gap-2">
-                  NEXUS IA
+                  AIRA IA
                   <span class="px-2 py-0.5 text-[9px] rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">Asistente activo</span>
                 </h3>
-                <p class="text-xs text-neutral-400">Inteligencia artificial educativa • Centro Educativo Los Pinos</p>
+                <p class="text-xs text-neutral-400">Asistente Inteligente de Reconocimiento y Asistencia • Centro Educativo Los Pinos</p>
               </div>
             </div>
 
@@ -1063,6 +1129,7 @@
             initCloud();
             populateJustificationSelect();
             switchTab('dashboard');
+            initAgenda();
             ensureFaceModels().catch(() => {
                 showToast("No se pudo cargar el modelo biométrico. Revisá tu conexión a Internet.", "error");
             });
@@ -1109,6 +1176,7 @@
             else stopCamera();
 
             if (tabId === 'admin') renderAdminPanel();
+            if (tabId === 'agenda') renderAgenda();
             if (tabId === 'classes') renderClasses();
             if (tabId === 'personnel') renderPersonnel();
         }
@@ -2184,16 +2252,52 @@
 
         function generateAiResponse(q) {
             const query = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            if (query.includes('biometrico') || query.includes('facial') || query.includes('rostro') || query.includes('registro')) {
-                return "El escaneo biométrico Veltrix utiliza la cámara web para aislar una región central de interés (ROI) de la cara. Extrae un vector de características normalizado para diferenciar con precisión a los alumnos y evitar registros duplicados.";
+
+            // 1) Si parece una orden para la agenda, intentamos crear el evento.
+            const agendaReply = tryAgendaCommand(q, query);
+            if (agendaReply) return agendaReply;
+
+            // 2) Consultas sobre la propia agenda / próximos eventos.
+            if ((query.includes('agenda') || query.includes('evento') || query.includes('recordatorio') || query.includes('que tengo') || query.includes('proximo')) &&
+                (query.includes('ver') || query.includes('tengo') || query.includes('mostra') || query.includes('mis') || query.includes('proximo') || query.includes('lista'))) {
+                return describeUpcomingEvents();
+            }
+            if (query.includes('agenda') || query.includes('agendar') || query.includes('recordar') || query.includes('recuerda')) {
+                return "Puedo agendarte eventos y recordatorios. Escribí algo como <em>“agendame reunión el 20/05 a las 10:00”</em> o <em>“recordame examen mañana a las 9”</em>. Si sos Administrador o Coordinador podés decir <em>“agenda pública acto el viernes a las 12”</em> para avisarle a toda la institución. También podés usar la pestaña <strong>Agenda</strong> para cargarlos a mano.";
+            }
+
+            // 3) Preguntas frecuentes del sistema.
+            if (query.includes('aira') || (query.includes('sigla') || query.includes('significa') || query.includes('nombre')) && query.includes('ia')) {
+                return "<strong>AIRA</strong> significa <strong>Asistente Inteligente de Reconocimiento y Asistencia</strong>. Soy la IA integrada en Veltrix Smart System para responder tus preguntas, guiarte por el sistema y gestionar tu agenda.";
+            }
+            if (query.includes('biometrico') || query.includes('facial') || query.includes('rostro') || query.includes('registro') || query.includes('camara')) {
+                return "El escaneo biométrico Veltrix utiliza la cámara web para aislar una región central de interés (ROI) de la cara. Extrae un vector de características normalizado para diferenciar con precisión a los alumnos y evitar registros duplicados. Podés dar de alta a un alumno en <strong>Registro biométrico</strong> y luego pasar lista en <strong>Pasar lista facial</strong>.";
             }
             if (query.includes('horario') || query.includes('tolerancia') || query.includes('tarde')) {
                 return "Podés ajustar los límites de entrada en el Panel principal. Los valores iniciales son las 08:00 para entrar a tiempo y las 08:20 como límite de llegada tarde.";
             }
-            if (query.includes('director') || query.includes('autoridad') || query.includes('pedro')) {
-                return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Marcos Lezama, director de orientación; y los tutores, adscriptos y psicólogos que figuran en esta sección.";
+            if (query.includes('justifica') || query.includes('falta')) {
+                return "En la pestaña <strong>Justificación de faltas</strong> podés registrar el motivo de la ausencia de un alumno para que quede asentado en el sistema.";
             }
-            return "Soy Nexus IA y puedo ayudarte con dudas técnicas, el registro de asistencia y las funciones del sistema Veltrix.";
+            if (query.includes('rol') || query.includes('permiso') || query.includes('rango') || query.includes('admin')) {
+                return "Los roles del sistema son: Administrador (gestiona usuarios y todo el contenido), Coordinador/a (gestiona alumnos y agenda pública), Docente/Adscripto (gestiona alumnos) y Solo lectura. Los de <strong>rango alto</strong> (Administrador y Coordinador) pueden publicar eventos en la agenda pública.";
+            }
+            if (query.includes('director') || query.includes('autoridad') || query.includes('pedro')) {
+                return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Marcos Lezama, director de orientación; y los tutores, adscriptos y psicólogos que figuran en esa sección.";
+            }
+            if (query.includes('quien te creo') || query.includes('equipo') || query.includes('code nexus') || query.includes('desarroll')) {
+                return "Fui desarrollada por el equipo <strong>CODE NEXUS</strong>: Justin Fagundez, Lucas Bonette y Facundo Pintos, para el Centro Educativo Los Pinos.";
+            }
+            if (query.includes('hola') || query.includes('buenas') || query.includes('buen dia') || query.includes('como estas')) {
+                return "¡Hola! Soy AIRA IA. Podés preguntarme sobre el sistema, el reconocimiento facial, los horarios o pedirme que te agende un evento. ¿En qué te ayudo?";
+            }
+            if (query.includes('gracias')) {
+                return "¡De nada! Cualquier otra cosa que necesites, acá estoy. — AIRA IA";
+            }
+            if (query.includes('ayuda') || query.includes('que podes') || query.includes('que haces') || query.includes('funcion')) {
+                return "Puedo ayudarte con: el reconocimiento biométrico, pasar lista, horarios, justificación de faltas, roles y permisos, y gestionar tu <strong>agenda</strong> (eventos personales y, si sos de rango alto, públicos). Probá pidiéndome <em>“agendame una reunión mañana a las 10”</em>.";
+            }
+            return "Soy <strong>AIRA IA</strong> (Asistente Inteligente de Reconocimiento y Asistencia). Puedo ayudarte con dudas técnicas, el registro de asistencia, las funciones del sistema Veltrix y tu agenda. Probá preguntando por el reconocimiento facial, los horarios, o pedíme que agende un evento (por ej.: <em>“agendame examen mañana a las 9”</em>).";
         }
 
         function updateAuthHeader() {
@@ -2217,6 +2321,7 @@
                 `;
             }
             applyAdminNav();
+            refreshAgendaForUser();
         }
 
         function openAuthModal() {
@@ -2687,6 +2792,285 @@
             if (CLOUD_ENABLED && fb) { await fb.A.signOut(fb.auth); students = []; syncedJson.clear(); localStorage.removeItem('veltrix_students'); renderAllStudents(); }
             else { currentUser = null; localStorage.removeItem('veltrix_current_user'); updateAuthHeader(); }
             showToast('Sesión cerrada.');
+        }
+
+        // ================== AGENDA (eventos personales y públicos) ==================
+        let personalEvents = [];
+        let publicEvents = JSON.parse(localStorage.getItem('veltrix_agenda_public') || '[]');
+        let agendaReminded = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_reminded') || '[]'));
+        let agendaSeenPublic = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_seen_public') || 'null') || []);
+        let agendaSeenInitialized = localStorage.getItem('veltrix_agenda_seen_public') !== null;
+        let agendaTimer = null;
+
+        function personalAgendaKey() {
+            const uid = currentUser ? String(currentUser.email || currentUser.uid || 'anon') : 'anon';
+            return 'veltrix_agenda_personal_' + uid.toLowerCase();
+        }
+        function loadPersonalEvents() {
+            personalEvents = currentUser ? JSON.parse(localStorage.getItem(personalAgendaKey()) || '[]') : [];
+        }
+        function savePersonalEvents() {
+            if (currentUser) localStorage.setItem(personalAgendaKey(), JSON.stringify(personalEvents));
+        }
+        function savePublicEvents() { localStorage.setItem('veltrix_agenda_public', JSON.stringify(publicEvents)); }
+        function saveAgendaMeta() {
+            localStorage.setItem('veltrix_agenda_reminded', JSON.stringify([...agendaReminded]));
+            localStorage.setItem('veltrix_agenda_seen_public', JSON.stringify([...agendaSeenPublic]));
+        }
+        function canManagePublicAgenda() {
+            return isApprovedUser() && !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'coordinador');
+        }
+
+        function initAgenda() {
+            loadPersonalEvents();
+            // En el primer arranque de este navegador, marcamos los eventos públicos ya existentes como vistos
+            // para no inundar de notificaciones; a partir de ahí sí avisamos de los nuevos.
+            if (!agendaSeenInitialized) { publicEvents.forEach(ev => agendaSeenPublic.add(ev.id)); agendaSeenInitialized = true; saveAgendaMeta(); }
+            renderAgenda();
+            updateAgendaBadge();
+            checkAgendaNotifications();
+            if (agendaTimer) clearInterval(agendaTimer);
+            agendaTimer = setInterval(checkAgendaNotifications, 60000); // revisa cada minuto
+        }
+        function refreshAgendaForUser() {
+            loadPersonalEvents();
+            renderAgenda();
+            updateAgendaBadge();
+        }
+
+        function formatEventDate(iso) {
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            const fecha = d.toLocaleDateString('es', { weekday: 'short', day: '2-digit', month: 'short' });
+            return fecha + ' · ' + d.toTimeString().slice(0, 5) + ' hs';
+        }
+
+        function upcomingEvents() {
+            const now = Date.now();
+            const all = [
+                ...personalEvents.map(e => ({ ...e, scope: 'personal' })),
+                ...publicEvents.map(e => ({ ...e, scope: 'public' }))
+            ];
+            return all.filter(e => new Date(e.datetime).getTime() >= now - 60000)
+                      .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+        }
+        function updateAgendaBadge() {
+            const count = upcomingEvents().length;
+            const navBadge = document.getElementById('agenda-nav-badge');
+            const bellBadge = document.getElementById('agenda-bell-badge');
+            [navBadge, bellBadge].forEach(b => { if (!b) return; if (count > 0) { b.textContent = count > 99 ? '99+' : count; b.classList.remove('hidden'); } else { b.classList.add('hidden'); } });
+        }
+
+        function eventCardHtml(ev, scope, canEdit) {
+            const isPast = new Date(ev.datetime).getTime() < Date.now() - 60000;
+            const badge = scope === 'public'
+                ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">PÚBLICO</span>'
+                : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-gold-500/10 text-gold-500 border border-gold-500/30">PERSONAL</span>';
+            const del = canEdit ? `<button onclick="deleteAgendaEvent('${scope}','${ev.id}')" title="Eliminar" class="text-rose-400 hover:text-rose-300 text-xs px-2 py-1 rounded-lg hover:bg-rose-500/10 transition"><i class="fa-solid fa-trash"></i></button>` : '';
+            return `
+                <div class="bg-cardbg border ${isPast ? 'border-borderbg opacity-60' : 'border-borderbg'} rounded-xl p-3 flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-white flex items-center gap-2 flex-wrap">${escapeHtml(ev.title)} ${badge}</p>
+                        <p class="text-[11px] text-gold-500 mt-0.5"><i class="fa-regular fa-clock mr-1"></i>${formatEventDate(ev.datetime)}</p>
+                        ${ev.desc ? `<p class="text-[11px] text-gray-400 mt-1 break-words">${escapeHtml(ev.desc)}</p>` : ''}
+                        ${ev.author ? `<p class="text-[10px] text-gray-500 mt-1">por ${escapeHtml(ev.author)}</p>` : ''}
+                    </div>
+                    <div class="flex-shrink-0">${del}</div>
+                </div>`;
+        }
+
+        function renderAgenda() {
+            const pList = document.getElementById('agenda-personal-list');
+            const gList = document.getElementById('agenda-public-list');
+            const gForm = document.getElementById('agenda-public-form');
+            const gLocked = document.getElementById('agenda-public-locked');
+            if (pList) {
+                if (!currentUser) {
+                    pList.innerHTML = '<p class="text-xs text-gray-500">Iniciá sesión para usar tu agenda personal.</p>';
+                } else {
+                    const list = [...personalEvents].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+                    pList.innerHTML = list.length ? list.map(ev => eventCardHtml(ev, 'personal', true)).join('') : '<p class="text-xs text-gray-500">No tenés eventos personales. Agregá uno o pedíselo a AIRA IA.</p>';
+                }
+            }
+            if (gForm && gLocked) {
+                if (canManagePublicAgenda()) { gForm.classList.remove('hidden'); gLocked.classList.add('hidden'); }
+                else { gForm.classList.add('hidden'); gLocked.classList.remove('hidden'); }
+            }
+            if (gList) {
+                const canEdit = canManagePublicAgenda();
+                const list = [...publicEvents].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+                gList.innerHTML = list.length ? list.map(ev => eventCardHtml(ev, 'public', canEdit)).join('') : '<p class="text-xs text-gray-500">No hay eventos públicos todavía.</p>';
+            }
+        }
+
+        function makeEventId() { return 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+        function handleAddPersonalEvent(e) {
+            e.preventDefault();
+            if (!currentUser) { showToast('Iniciá sesión para usar tu agenda personal.', 'error'); openAuthModal(); return; }
+            const title = document.getElementById('agenda-p-title').value.trim();
+            const date = document.getElementById('agenda-p-date').value;
+            const time = document.getElementById('agenda-p-time').value;
+            const desc = document.getElementById('agenda-p-desc').value.trim();
+            if (!title || !date || !time) { showToast('Completá título, fecha y hora.', 'error'); return; }
+            addPersonalEvent(title, date + 'T' + time, desc);
+            e.target.reset();
+            showToast('Evento agregado a tu agenda personal.', 'success');
+        }
+        function addPersonalEvent(title, datetime, desc) {
+            const ev = { id: makeEventId(), title, datetime, desc: desc || '' };
+            personalEvents.push(ev);
+            savePersonalEvents();
+            renderAgenda(); updateAgendaBadge();
+            return ev;
+        }
+
+        function handleAddPublicEvent(e) {
+            e.preventDefault();
+            if (!canManagePublicAgenda()) { showToast('Solo un usuario de rango alto (Administrador/Coordinador) puede publicar eventos.', 'error'); return; }
+            const title = document.getElementById('agenda-g-title').value.trim();
+            const date = document.getElementById('agenda-g-date').value;
+            const time = document.getElementById('agenda-g-time').value;
+            const desc = document.getElementById('agenda-g-desc').value.trim();
+            if (!title || !date || !time) { showToast('Completá título, fecha y hora.', 'error'); return; }
+            addPublicEvent(title, date + 'T' + time, desc);
+            e.target.reset();
+        }
+        function addPublicEvent(title, datetime, desc) {
+            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración' };
+            publicEvents.push(ev);
+            savePublicEvents();
+            agendaSeenPublic.add(ev.id); // quien lo crea ya lo "vio"
+            saveAgendaMeta();
+            renderAgenda(); updateAgendaBadge();
+            showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
+            return ev;
+        }
+
+        function deleteAgendaEvent(scope, id) {
+            if (scope === 'public') {
+                if (!canManagePublicAgenda()) { showToast('Solo un usuario de rango alto puede modificar la agenda pública.', 'error'); return; }
+                publicEvents = publicEvents.filter(e => e.id !== id); savePublicEvents();
+            } else {
+                personalEvents = personalEvents.filter(e => e.id !== id); savePersonalEvents();
+            }
+            renderAgenda(); updateAgendaBadge();
+            showToast('Evento eliminado.');
+        }
+
+        function checkAgendaNotifications() {
+            const now = Date.now();
+            // Avisar de nuevos eventos públicos (futuros) que este navegador aún no vio.
+            publicEvents.forEach(ev => {
+                if (!agendaSeenPublic.has(ev.id)) {
+                    agendaSeenPublic.add(ev.id);
+                    if (new Date(ev.datetime).getTime() >= now) {
+                        showToast('📢 Nuevo evento público: ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
+                    }
+                }
+            });
+            // Recordatorios de eventos próximos (dentro de 24 h).
+            upcomingEvents().forEach(ev => {
+                const diff = new Date(ev.datetime).getTime() - now;
+                if (diff > 0 && diff <= 24 * 3600 * 1000 && !agendaReminded.has(ev.id)) {
+                    agendaReminded.add(ev.id);
+                    const quien = ev.scope === 'public' ? 'evento público' : 'tu evento';
+                    showToast('⏰ Recordatorio de ' + quien + ': ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
+                }
+            });
+            saveAgendaMeta();
+            updateAgendaBadge();
+        }
+
+        function describeUpcomingEvents() {
+            const list = upcomingEvents().slice(0, 6);
+            if (!list.length) return 'No tenés eventos próximos en tu agenda. Podés agregar uno diciéndome algo como <em>“agendame reunión mañana a las 10”</em>.';
+            const items = list.map(ev => `• <strong>${escapeHtml(ev.title)}</strong> — ${formatEventDate(ev.datetime)} ${ev.scope === 'public' ? '<em>(público)</em>' : ''}`).join('<br>');
+            return 'Tus próximos eventos son:<br>' + items;
+        }
+
+        // ----- Interpretación en lenguaje natural para la agenda -----
+        const AGENDA_MONTHS = { enero:0, febrero:1, marzo:2, abril:3, mayo:4, junio:5, julio:6, agosto:7, septiembre:8, setiembre:8, octubre:9, noviembre:10, diciembre:11 };
+        const AGENDA_WEEKDAYS = { domingo:0, lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6 };
+
+        function parseAgendaDateTime(norm) {
+            const now = new Date();
+            let date = null;
+            // Fechas relativas
+            if (/pasado\s+manana/.test(norm)) { date = new Date(now); date.setDate(date.getDate() + 2); }
+            else if (/\bmanana\b/.test(norm)) { date = new Date(now); date.setDate(date.getDate() + 1); }
+            else if (/\bhoy\b/.test(norm)) { date = new Date(now); }
+            // dd/mm o dd-mm (opcional año)
+            if (!date) {
+                const m = norm.match(/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
+                if (m) { let y = m[3] ? parseInt(m[3]) : now.getFullYear(); if (y < 100) y += 2000; date = new Date(y, parseInt(m[2]) - 1, parseInt(m[1])); }
+            }
+            // "20 de mayo"
+            if (!date) {
+                const m = norm.match(/\b(\d{1,2})\s+de\s+([a-z]+)/);
+                if (m && AGENDA_MONTHS[m[2]] !== undefined) { date = new Date(now.getFullYear(), AGENDA_MONTHS[m[2]], parseInt(m[1])); if (date < now) date.setFullYear(now.getFullYear() + 1); }
+            }
+            // Día de la semana
+            if (!date) {
+                const m = norm.match(/\b(domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b/);
+                if (m) { const target = AGENDA_WEEKDAYS[m[1]]; date = new Date(now); let add = (target - now.getDay() + 7) % 7; if (add === 0) add = 7; date.setDate(date.getDate() + add); }
+            }
+            // Hora
+            let hadTime = false, hh = 9, mm = 0;
+            let tm = norm.match(/\b(\d{1,2})[:.](\d{2})\s*(am|pm)?/);
+            if (!tm) tm = norm.match(/\ba\s+las?\s+(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|hs|h|horas)?/);
+            if (tm) { hadTime = true; hh = parseInt(tm[1]); mm = tm[2] ? parseInt(tm[2]) : 0; const ap = tm[3]; if (ap === 'pm' && hh < 12) hh += 12; if (ap === 'am' && hh === 12) hh = 0; }
+            if (/\by\s+media\b/.test(norm)) mm = 30;
+            if (/\by\s+cuarto\b/.test(norm)) mm = 15;
+            if (!date && !hadTime) return null;
+            if (!date) { date = new Date(now); } // solo hora: hoy
+            date.setHours(hh, mm, 0, 0);
+            if (!hadTime) date.setHours(9, 0, 0, 0);
+            return { date, hadTime };
+        }
+
+        function extractAgendaTitle(original) {
+            let t = ' ' + original.trim() + ' ';
+            t = t.replace(/^\s*(por favor\s+)?/i, ' ');
+            t = t.replace(/\b(agendame|agendar|agendalo|agenda|recordame|recordar|recuerdame|anotame|anota|programame|programa|poneme|crea(?:r)?\s+(?:un\s+)?evento|nuevo\s+evento|agrega(?:r)?\s+(?:un\s+)?evento)\b/ig, ' ');
+            t = t.replace(/\b(en\s+(?:la\s+)?agenda\s+)?(publica|publico|publ[ií]ca|institucional)\b/ig, ' ');
+            t = t.replace(/\bpara\s+todos\b/ig, ' ');
+            t = t.replace(/\bpasado\s+ma[nñ]ana\b/ig, ' ');
+            t = t.replace(/\b(ma[nñ]ana|hoy)\b/ig, ' ');
+            t = t.replace(/\bel\s+(domingo|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado)\b/ig, ' ');
+            t = t.replace(/\b(domingo|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado)\b/ig, ' ');
+            t = t.replace(/\bel\s+\d{1,2}\s+de\s+[a-zñáéíóú]+/ig, ' ');
+            t = t.replace(/\b\d{1,2}\s+de\s+[a-zñáéíóú]+/ig, ' ');
+            t = t.replace(/\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b/g, ' ');
+            t = t.replace(/\ba\s+las?\s+\d{1,2}(?:[:.]\d{2})?\s*(?:hs|h|horas|am|pm)?\b/ig, ' ');
+            t = t.replace(/\b\d{1,2}[:.]\d{2}\s*(?:hs|h|am|pm)?\b/ig, ' ');
+            t = t.replace(/\b(a\s+las|las)\b/ig, ' ');
+            t = t.replace(/\by\s+(media|cuarto)\b/ig, ' ');
+            t = t.replace(/\s{2,}/g, ' ').replace(/^[\s,.:;-]+|[\s,.:;-]+$/g, '').trim();
+            if (!t) t = 'Evento';
+            return t.charAt(0).toUpperCase() + t.slice(1);
+        }
+
+        function tryAgendaCommand(original, norm) {
+            const hasVerb = /\b(agendame|agendar|agendalo|agenda|recordame|recordar|recuerdame|anotame|anota|programame|programa|poneme|crea(?:r)?\s+(?:un\s+)?evento|nuevo\s+evento|agrega(?:r)?\s+(?:un\s+)?evento)\b/.test(norm);
+            if (!hasVerb) return null;
+            const dt = parseAgendaDateTime(norm);
+            if (!dt) return null; // sin fecha/hora: dejamos que la rama general pida más datos
+            const wantsPublic = /(publica|publico|publ[ií]ca|institucional|para\s+todos)/.test(norm);
+            const title = extractAgendaTitle(original);
+            const iso = dt.date.getFullYear() + '-' + String(dt.date.getMonth() + 1).padStart(2, '0') + '-' + String(dt.date.getDate()).padStart(2, '0') + 'T' + String(dt.date.getHours()).padStart(2, '0') + ':' + String(dt.date.getMinutes()).padStart(2, '0');
+            if (wantsPublic) {
+                if (!canManagePublicAgenda()) {
+                    return 'Para publicar en la <strong>agenda pública</strong> necesitás un rol de rango alto (Administrador o Coordinador). Puedo agregarlo a tu agenda personal si querés: pedímelo sin la palabra «pública».';
+                }
+                addPublicEvent(title, iso, '');
+                return `Listo ✅ Publiqué el evento <strong>${escapeHtml(title)}</strong> para el ${formatEventDate(iso)} en la agenda pública. Se notificó a todos los usuarios.`;
+            }
+            if (!currentUser) {
+                return 'Para guardar eventos en tu agenda personal necesitás iniciar sesión. Igualmente podés cargarlos desde la pestaña <strong>Agenda</strong>.';
+            }
+            addPersonalEvent(title, iso, '');
+            return `Listo ✅ Agendé <strong>${escapeHtml(title)}</strong> para el ${formatEventDate(iso)} en tu agenda personal. Te avisaré cuando se acerque.`;
         }
 
         function downloadSelfSource() {
