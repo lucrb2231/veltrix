@@ -562,6 +562,7 @@
                             <label class="block text-xs font-semibold text-gray-300 mb-1">Hora de cierre de lista (quien no pasó por el escaneo facial queda ausente)</label>
                             <input type="time" id="time-limit-absent" value="12:00" onchange="checkAbsentees(true)" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
                             <p class="text-[10px] text-gray-500 mt-1">De lunes a viernes, pasada esta hora, todo alumno sin entrada registrada hoy (y sin justificación) se marca como ausente y la ausencia queda en su historial. Si llega después y escanea su rostro, la ausencia se anula.</p>
+                            <p id="tolerance-lock-note" class="hidden text-[10px] text-amber-400 mt-2 flex items-center gap-1.5"><i class="fa-solid fa-lock"></i> Iniciá sesión con una cuenta aprobada para modificar las tolerancias de horario.</p>
                         </div>
                     </div>
                 </div>
@@ -807,9 +808,12 @@
                                 <p class="text-xs text-gray-400"><strong class="text-gold-500/90">A.I.R.A.</strong> — Asistente Inteligente de Reconocimiento y Asistencia</p>
                             </div>
                         </div>
-                            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> IA en línea
-                        </span>
+                            <div class="flex items-center gap-2">
+                                <span id="ai-status-chip" class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold">
+                                    <span id="ai-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> <span id="ai-status-text">Modo básico</span>
+                                </span>
+                                
+                            </div>
                     </div>
 
                     <!-- Chat Box -->
@@ -819,7 +823,7 @@
                                 AIRA
                             </div>
                             <div class="bg-darkbg border border-borderbg rounded-2xl p-4 text-xs text-gray-300 max-w-xl">
-                                ¡Hola! Soy <strong>AIRA IA</strong> (<em>Asistente Inteligente de Reconocimiento y Asistencia</em>), el módulo inteligente integrado en Veltrix Smart System. Puedo responder tus preguntas sobre el sistema, el reconocimiento biométrico, los horarios y la información del Centro Educativo Los Pinos. También puedo <strong>agendarte eventos y recordatorios</strong>: probá escribiendo algo como <em>“agendame reunión mañana a las 10:00”</em>. ¿En qué te ayudo?
+                                ¡Hola! Soy <strong>AIRA IA</strong> (<em>Asistente Inteligente de Reconocimiento y Asistencia</em>), la IA integrada en Veltrix Smart System. Podés <strong>escribirme cualquier pregunta</strong> y te respondo como un asistente conversacional. También gestiono tu <strong>agenda</strong>: probá con <em>“agendame reunión mañana a las 10:00”</em>.
                             </div>
                         </div>
                     </div>
@@ -828,6 +832,9 @@
                     <div class="flex items-center gap-2 overflow-x-auto pb-3 text-xs">
                         <button onclick="askPreset('¿Cómo funciona el reconocimiento biométrico?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
                             ¿Cómo funciona el reconocimiento facial?
+                        </button>
+                        <button onclick="askPreset('Explicame la fotosíntesis en 3 líneas')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            Hacele una pregunta libre
                         </button>
                         <button onclick="askPreset('Agendame una reunión mañana a las 10:00')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
                             Agendame un evento
@@ -842,11 +849,12 @@
 
                     <!-- Input Form -->
                     <form onsubmit="handleAiChat(event)" class="flex gap-2">
-                        <input type="text" id="ai-user-input" placeholder="Preguntá o pedí algo a AIRA IA..." required class="flex-1 bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-gold-500">
-                        <button type="submit" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-6 py-3 rounded-xl text-xs transition flex items-center gap-2">
+                        <input type="text" id="ai-user-input" placeholder="Preguntá o pedí algo a AIRA IA..." required class="flex-1 min-w-0 bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-gold-500">
+                        <button type="submit" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold px-5 py-3 rounded-xl text-xs transition flex items-center gap-2 flex-shrink-0">
                             <span>Enviar</span>
                             <i class="fa-solid fa-paper-plane"></i>
                         </button>
+                        
                     </form>
                 </div>
             </section>
@@ -1078,6 +1086,15 @@
         };
         const CLOUD_ENABLED = !!FIREBASE_CONFIG.apiKey;
 
+        // ============================================================
+        //  DIRECCION DEL SERVIDOR DE IA  (aca se esconde la API Key)
+        //  Pega la URL que te da Render, por ejemplo:
+        //      https://aira-colegio.onrender.com
+        //  (sin barra al final). Si lo dejas vacio, usa el mismo
+        //  sitio donde esta la pagina (sirve para pruebas locales).
+        // ============================================================
+        const AIRA_BACKEND_URL = '';
+
         // System state variables
         let students = JSON.parse(localStorage.getItem('veltrix_students') || '[]');
         let currentUser = CLOUD_ENABLED ? null : JSON.parse(localStorage.getItem('veltrix_current_user') || 'null');
@@ -1130,6 +1147,8 @@
             populateJustificationSelect();
             switchTab('dashboard');
             initAgenda();
+            loadAiConfig();
+            syncPermissionsUi();
             ensureFaceModels().catch(() => {
                 showToast("No se pudo cargar el modelo biométrico. Revisá tu conexión a Internet.", "error");
             });
@@ -2217,37 +2236,165 @@
 
             appendAiMessage(query, 'user');
             input.value = '';
-
-            setTimeout(() => {
-                const response = generateAiResponse(query);
-                appendAiMessage(response, 'ai');
-            }, 500);
+            runAira(query);
         }
 
         function askPreset(question) {
             appendAiMessage(question, 'user');
-            setTimeout(() => {
-                const response = generateAiResponse(question);
-                appendAiMessage(response, 'ai');
-            }, 500);
+            runAira(question);
+        }
+
+        // Orquesta la respuesta: 1) comandos de agenda (local), 2) IA real si hay clave, 3) respuestas básicas.
+        async function runAira(query) {
+            const norm = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const agendaReply = tryAgendaCommand(query, norm);
+            if (agendaReply) {
+                appendAiMessage(agendaReply, 'ai');
+                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: agendaReply.replace(/<[^>]+>/g, '') });
+                return;
+            }
+            const systemReply = generateAiResponse(query);
+            if (systemReply) {
+                appendAiMessage(systemReply, 'ai');
+                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: systemReply.replace(/<[^>]+>/g, '') });
+                return;
+            }
+            const typingId = appendAiTyping();
+            try {
+                const answer = await callAiraLLM(query);
+                removeAiTyping(typingId);
+                appendAiMessage(aiFormat(answer), 'ai');
+                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: answer });
+                if (aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
+            } catch (err) {
+                removeAiTyping(typingId);
+                appendAiMessage('No pude conectar con la IA (' + escapeHtml(err && err.message ? err.message : 'error') + '). Verifica que el servidor de IA este encendido.', 'ai');
+            }
         }
 
         function appendAiMessage(text, sender) {
             const box = document.getElementById('ai-chat-box');
             const isUser = sender === 'user';
-
+            const safe = isUser ? escapeHtml(text) : text;
             const msgHtml = `
                 <div class="flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}">
-                    <div class="w-8 h-8 rounded-lg ${isUser ? 'bg-borderbg text-white' : 'bg-gold-500 text-darkbg'} flex items-center justify-center font-bold text-[10px] flex-shrink-0">
-                        ${isUser ? 'TÚ' : 'N-IA'}
+                    <div class="w-8 h-8 rounded-lg ${isUser ? 'bg-borderbg text-white' : 'bg-gold-500 text-darkbg'} flex items-center justify-center font-bold text-[9px] flex-shrink-0">
+                        ${isUser ? 'TÚ' : 'AIRA'}
                     </div>
-                    <div class="${isUser ? 'bg-gold-500/10 border-gold-500/30 text-white' : 'bg-darkbg border-borderbg text-gray-300'} border rounded-2xl p-4 text-xs max-w-xl">
-                        ${text}
+                    <div class="${isUser ? 'bg-gold-500/10 border-gold-500/30 text-white' : 'bg-darkbg border-borderbg text-gray-300'} border rounded-2xl p-4 text-xs max-w-xl break-words">
+                        ${safe}
                     </div>
                 </div>
             `;
             box.insertAdjacentHTML('beforeend', msgHtml);
             box.scrollTop = box.scrollHeight;
+        }
+
+        function appendAiTyping() {
+            const box = document.getElementById('ai-chat-box');
+            const id = 'typing_' + Date.now();
+            const html = `
+                <div id="${id}" class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gold-500 text-darkbg flex items-center justify-center font-bold text-[9px] flex-shrink-0">AIRA</div>
+                    <div class="bg-darkbg border border-borderbg text-gray-400 rounded-2xl p-4 text-xs">
+                        <span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse"></span><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" style="animation-delay:.3s"></span> escribiendo…</span>
+                    </div>
+                </div>`;
+            box.insertAdjacentHTML('beforeend', html);
+            box.scrollTop = box.scrollHeight;
+            return id;
+        }
+        function removeAiTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
+
+        // Formatea texto del modelo a HTML seguro (escapa primero, luego markdown básico).
+        function aiFormat(text) {
+            let s = escapeHtml(String(text || ''));
+            s = s.replace(/```([\s\S]*?)```/g, (m, c) => '<pre class="bg-black/40 rounded-lg p-2 overflow-x-auto text-[11px] my-1 whitespace-pre-wrap">' + c.replace(/^\n+|\n+$/g, '') + '</pre>');
+            s = s.replace(/`([^`]+)`/g, '<code class="bg-black/30 px-1 rounded">$1</code>');
+            s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+            s = s.replace(/^\s*#{1,6}\s*(.*)$/gm, '<strong>$1</strong>');
+            s = s.replace(/^\s*[-*]\s+(.*)$/gm, '• $1');
+            s = s.replace(/\n/g, '<br>');
+            return s;
+        }
+
+        // ----- Conexion con el servidor de IA (la API Key vive en el servidor) -----
+        let aiHistory = [];   // { role: 'user'|'model', text: string }
+
+        function aireBaseUrl() {
+            var u = String(AIRA_BACKEND_URL || '').replace(/\/+$/, '');
+            return u || location.origin;
+        }
+
+        // Bloquea las tolerancias de horario si no hay sesion aprobada.
+        function syncPermissionsUi() {
+            const locked = !isApprovedUser();
+            ['time-limit-on-time', 'time-limit-late', 'time-limit-absent'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.disabled = locked;
+                el.classList.toggle('opacity-50', locked);
+                el.classList.toggle('cursor-not-allowed', locked);
+            });
+            const note = document.getElementById('tolerance-lock-note');
+            if (note) note.classList.toggle('hidden', !locked);
+        }
+
+        function updateAiStatus() {
+            const chip = document.getElementById('ai-status-chip');
+            const dot = document.getElementById('ai-status-dot');
+            const txt = document.getElementById('ai-status-text');
+            if (!chip || !txt) return;
+            chip.className = 'text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold';
+            if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            txt.textContent = 'IA conectada';
+        }
+        function setBasicMode() {
+            const chip = document.getElementById('ai-status-chip');
+            const dot = document.getElementById('ai-status-dot');
+            const txt = document.getElementById('ai-status-text');
+            if (chip) chip.className = 'text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold';
+            if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+            if (txt) txt.textContent = 'Modo basico';
+        }
+
+        // Revisa si el servidor de IA esta disponible.
+        async function loadAiConfig() {
+            updateAiStatus();
+            try {
+                const res = await fetch(aireBaseUrl() + '/api/health', { cache: 'no-store' });
+                const data = await res.json();
+                if (!(data && (data.geminiConfigurado || data.openaiConfigurado))) {
+                    setBasicMode();
+                }
+            } catch (e) {
+                setBasicMode();
+            }
+        }
+
+        // Llama al servidor intermedio. La API Key nunca viaja al navegador.
+        async function callAiraLLM(query) {
+            const history = aiHistory.slice(-10).map(function (h) {
+                return { role: h.role === 'model' ? 'assistant' : 'user', content: h.text };
+            });
+            let res;
+            try {
+                res = await fetch(aireBaseUrl() + '/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: query, history: history })
+                });
+            } catch (e) {
+                throw new Error('No se pudo contactar al servidor de IA. Verifica que este encendido.');
+            }
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) {
+                throw new Error((data && data.error) ? data.error : ('El servidor respondio ' + res.status));
+            }
+            const text = (data && data.text) ? String(data.text).trim() : '';
+            return text || '(sin respuesta)';
         }
 
         function generateAiResponse(q) {
@@ -2321,6 +2468,7 @@
                 `;
             }
             applyAdminNav();
+            syncPermissionsUi();
             refreshAgendaForUser();
         }
 
@@ -2628,7 +2776,7 @@
                 }
             });
             if (!changed) return false;
-            const canSave = CLOUD_ENABLED ? !!(fb && currentUser?.uid && canManageStudents()) : true;
+            const canSave = CLOUD_ENABLED ? !!(fb && currentUser?.uid && canManageStudents()) : canManageStudents();
             if (canSave) persistStudents();
             renderAllStudents();
             if (force) showToast('Lista cerrada: los alumnos sin escaneo quedaron como ausentes.', 'success');
@@ -2641,7 +2789,7 @@
             const changed = closeAttendanceDays();
             if (!changed) return false;
             // En modo nube solo guardan las cuentas con permiso; el resto ve el reinicio sin escribir.
-            const canSave = CLOUD_ENABLED ? !!(fb && currentUser?.uid && canManageStudents()) : true;
+            const canSave = CLOUD_ENABLED ? !!(fb && currentUser?.uid && canManageStudents()) : canManageStudents();
             if (canSave) persistStudents();
             renderAllStudents();
             return true;
