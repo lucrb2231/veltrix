@@ -2247,18 +2247,26 @@
         // Orquesta la respuesta: 1) comandos de agenda (local), 2) IA real si hay clave, 3) respuestas básicas.
         async function runAira(query) {
             const norm = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            // 1) Comandos para crear eventos en la agenda -> local (no necesita servidor).
             const agendaReply = tryAgendaCommand(query, norm);
             if (agendaReply) {
                 appendAiMessage(agendaReply, 'ai');
                 aiHistory.push({ role: 'user', text: query }, { role: 'model', text: agendaReply.replace(/<[^>]+>/g, '') });
                 return;
             }
-            const systemReply = generateAiResponse(query);
-            if (systemReply) {
-                appendAiMessage(systemReply, 'ai');
-                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: systemReply.replace(/<[^>]+>/g, '') });
+
+            // 2) Consultas sobre la propia agenda / proximos eventos -> local (usa datos guardados).
+            const isAgendaQuery = (norm.includes('agenda') || norm.includes('evento') || norm.includes('recordatorio') || norm.includes('que tengo') || norm.includes('proximo')) &&
+                (norm.includes('ver') || norm.includes('tengo') || norm.includes('mostra') || norm.includes('mis') || norm.includes('proximo') || norm.includes('lista'));
+            if (isAgendaQuery) {
+                const reply = describeUpcomingEvents();
+                appendAiMessage(reply, 'ai');
+                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: reply.replace(/<[^>]+>/g, '') });
                 return;
             }
+
+            // 3) Cualquier otra pregunta -> IA real en el servidor (Gemini).
             const typingId = appendAiTyping();
             try {
                 const answer = await callAiraLLM(query);
@@ -2267,8 +2275,11 @@
                 aiHistory.push({ role: 'user', text: query }, { role: 'model', text: answer });
                 if (aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
             } catch (err) {
+                // Si el servidor no responde, usamos la respuesta basica local como respaldo.
                 removeAiTyping(typingId);
-                appendAiMessage('No pude conectar con la IA (' + escapeHtml(err && err.message ? err.message : 'error') + '). Verifica que el servidor de IA este encendido.', 'ai');
+                const fallback = generateAiResponse(query);
+                appendAiMessage(fallback, 'ai');
+                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: fallback.replace(/<[^>]+>/g, '') });
             }
         }
 
