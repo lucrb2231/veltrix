@@ -379,7 +379,7 @@
                         <path d="M32 26 V29 C32 30 31 31 30 31 H27" stroke="url(#veltrixGoldHeader)" stroke-width="2.2" stroke-linecap="round"/>
                         <circle cx="24" cy="21" r="3.4" fill="url(#veltrixGoldHeader)"/>
                     </svg>
-                    <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="w-full h-full object-contain rounded-lg relative z-10" onerror="this.style.display='none';">
+                    <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="absolute inset-0 w-full h-full object-cover rounded-xl z-10" onerror="this.style.display='none';">
                 </div>
                 <div>
                     <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white flex items-center gap-1.5">
@@ -489,7 +489,7 @@
               <path d="M32 26 V29 C32 30 31 31 30 31 H27" stroke="url(#veltrixGoldBanner)" stroke-width="2" stroke-linecap="round"/>
               <circle cx="24" cy="21" r="3.4" fill="url(#veltrixGoldBanner)"/>
           </svg>
-          <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="w-20 h-20 object-contain absolute inset-0 m-3 rounded-lg" onerror="this.style.display='none';">
+          <img src="Gemini_Generated_Image_37jy0g37jy0g37jy_1790035555648.jfif" alt="Logo Veltrix" class="absolute inset-0 m-3 w-20 h-20 object-cover rounded-xl z-10" onerror="this.style.display='none';">
         </div>
         <h2 class="text-2xl font-bold text-white">Veltrix Smart System</h2>
         <p class="text-xs text-neutral-400 mt-1">Centro Educativo Los Pinos — Control de acceso</p>
@@ -872,6 +872,11 @@
                         <button onclick="switchTab('nexus-ai')" class="bg-gold-500/10 hover:bg-gold-500/20 text-gold-500 border border-gold-500/30 text-[11px] font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition">
                             <i class="fa-solid fa-robot"></i> Pedir a AIRA IA
                         </button>
+                    </div>
+
+                    <div id="agenda-notif-banner" class="mb-5 rounded-xl px-4 py-3 border border-gold-500/30 bg-gold-500/10 flex items-center justify-between flex-wrap gap-3">
+                        <p class="text-[11px] text-gray-300 flex items-center gap-2"><i class="fa-solid fa-bell text-gold-500"></i> <span id="agenda-notif-text">Activá los avisos para que el navegador te recuerde los eventos aunque estés en otra pestaña.</span></p>
+                        <button id="agenda-notif-btn" onclick="enableAgendaNotifications()" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold text-[11px] px-3 py-2 rounded-xl flex items-center gap-2 transition"><i class="fa-solid fa-bell"></i> Activar avisos</button>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2278,7 +2283,7 @@
                 removeAiTyping(typingId);
                 const msg = (err && err.message) ? err.message : 'error desconocido';
                 if (msg === 'El servidor se esta iniciando.' || msg === 'No se pudo contactar al servidor de IA.') {
-                    appendAiMessage('⚠️ No pude conectar con la IA todavía. El servidor gratuito suele “dormirse” tras un rato sin uso y puede tardar en despertar. Esperá unos segundos y volvé a enviar tu pregunta.', 'ai');
+                    appendAiMessage('⚠️ No pude conectar con la IA todavía. El servidor suele “dormirse” tras un rato sin uso y puede tardar en despertar. Esperá unos segundos y volvé a enviar tu pregunta.', 'ai');
                 } else {
                     appendAiMessage('⚠️ La IA respondió con un error: ' + escapeHtml(msg) + '. Revisá la configuración del servidor (clave o modelo) y volvé a intentar.', 'ai');
                 }
@@ -3101,6 +3106,7 @@
                 const list = [...publicEvents].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
                 gList.innerHTML = list.length ? list.map(ev => eventCardHtml(ev, 'public', canEdit)).join('') : '<p class="text-xs text-gray-500">No hay eventos públicos todavía.</p>';
             }
+            updateAgendaNotifBanner();
         }
 
         function makeEventId() { return 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -3166,6 +3172,7 @@
                     agendaSeenPublic.add(ev.id);
                     if (new Date(ev.datetime).getTime() >= now) {
                         showToast('📢 Nuevo evento público: ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
+                        sendSystemNotification('📢 Nuevo evento público', ev.title + ' — ' + formatEventDate(ev.datetime));
                     }
                 }
             });
@@ -3176,10 +3183,66 @@
                     agendaReminded.add(ev.id);
                     const quien = ev.scope === 'public' ? 'evento público' : 'tu evento';
                     showToast('⏰ Recordatorio de ' + quien + ': ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
+                    sendSystemNotification('⏰ Recordatorio: ' + ev.title, 'Se acerca ' + quien + ' — ' + formatEventDate(ev.datetime));
                 }
             });
             saveAgendaMeta();
             updateAgendaBadge();
+        }
+
+        // ----- Notificaciones del navegador (recordatorios de agenda) -----
+        function agendaNotifState() {
+            if (!('Notification' in window)) return 'unsupported';
+            return Notification.permission; // 'default' | 'granted' | 'denied'
+        }
+        function sendSystemNotification(title, body) {
+            try {
+                if (('Notification' in window) && Notification.permission === 'granted') {
+                    new Notification(title, { body: body, tag: 'veltrix-agenda', icon: '' });
+                }
+            } catch (e) { /* algunos navegadores restringen; el aviso en pantalla ya se mostró */ }
+        }
+        function enableAgendaNotifications() {
+            const state = agendaNotifState();
+            if (state === 'unsupported') {
+                showToast('Tu navegador no permite avisos de escritorio. Igual vas a ver los recordatorios dentro de la página.', 'error');
+                return;
+            }
+            if (state === 'granted') {
+                sendSystemNotification('✅ Avisos activados', 'Te vamos a recordar los eventos de tu agenda.');
+                updateAgendaNotifBanner();
+                return;
+            }
+            if (state === 'denied') {
+                showToast('Los avisos están bloqueados en tu navegador. Habilitalos desde el candado 🔒 de la barra de direcciones y volvé a intentar.', 'error');
+                return;
+            }
+            Notification.requestPermission().then(function () {
+                updateAgendaNotifBanner();
+                if (Notification.permission === 'granted') {
+                    sendSystemNotification('✅ Avisos activados', 'Te vamos a recordar los eventos de tu agenda.');
+                }
+            });
+        }
+        function updateAgendaNotifBanner() {
+            const banner = document.getElementById('agenda-notif-banner');
+            const txt = document.getElementById('agenda-notif-text');
+            const btn = document.getElementById('agenda-notif-btn');
+            if (!banner) return;
+            const state = agendaNotifState();
+            if (state === 'granted') {
+                if (txt) txt.textContent = 'Avisos activados: el navegador te recordará los eventos próximos (dentro de las 24 h) aunque estés en otra pestaña.';
+                if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Avisos activados'; btn.disabled = true; btn.classList.add('opacity-60', 'cursor-default'); }
+            } else if (state === 'denied') {
+                if (txt) txt.textContent = 'Los avisos están bloqueados. Para recibirlos, habilitalos desde el candado 🔒 de la barra de direcciones.';
+                if (btn) { btn.innerHTML = '<i class="fa-solid fa-bell"></i> Reintentar'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-default'); }
+            } else if (state === 'unsupported') {
+                if (txt) txt.textContent = 'Tu navegador no permite avisos de escritorio, pero igual vas a ver los recordatorios dentro de la página.';
+                if (btn) btn.classList.add('hidden');
+            } else {
+                if (txt) txt.textContent = 'Activá los avisos para que el navegador te recuerde los eventos aunque estés en otra pestaña.';
+                if (btn) { btn.innerHTML = '<i class="fa-solid fa-bell"></i> Activar avisos'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-default', 'hidden'); }
+            }
         }
 
         function describeUpcomingEvents() {
