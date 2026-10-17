@@ -2269,17 +2269,15 @@
             // 3) Cualquier otra pregunta -> IA real en el servidor (Gemini).
             const typingId = appendAiTyping();
             try {
-                const answer = await callAiraLLM(query);
+                const answer = await callAiraLLM(query, function (estado) { setAiTyping(typingId, estado); });
                 removeAiTyping(typingId);
                 appendAiMessage(aiFormat(answer), 'ai');
                 aiHistory.push({ role: 'user', text: query }, { role: 'model', text: answer });
                 if (aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
             } catch (err) {
-                // Si el servidor no responde, usamos la respuesta basica local como respaldo.
+                // No damos respuestas prehechas: avisamos con claridad que fue el servidor.
                 removeAiTyping(typingId);
-                const fallback = generateAiResponse(query);
-                appendAiMessage(fallback, 'ai');
-                aiHistory.push({ role: 'user', text: query }, { role: 'model', text: fallback.replace(/<[^>]+>/g, '') });
+                appendAiMessage('⚠️ No pude conectar con la IA en este momento. El servidor gratuito suele “dormirse” tras un rato sin uso y tarda hasta ~1 minuto en despertar. Esperá unos segundos y volvé a enviar tu pregunta.', 'ai');
             }
         }
 
@@ -2301,19 +2299,28 @@
             box.scrollTop = box.scrollHeight;
         }
 
-        function appendAiTyping() {
+        function appendAiTyping(label) {
             const box = document.getElementById('ai-chat-box');
             const id = 'typing_' + Date.now();
+            const txt = label || 'escribiendo…';
             const html = `
                 <div id="${id}" class="flex items-start gap-3">
                     <div class="w-8 h-8 rounded-lg bg-gold-500 text-darkbg flex items-center justify-center font-bold text-[9px] flex-shrink-0">AIRA</div>
                     <div class="bg-darkbg border border-borderbg text-gray-400 rounded-2xl p-4 text-xs">
-                        <span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse"></span><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" style="animation-delay:.3s"></span> escribiendo…</span>
+                        <span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse"></span><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" style="animation-delay:.3s"></span> <span class="typing-label">${escapeHtml(txt)}</span></span>
                     </div>
                 </div>`;
             box.insertAdjacentHTML('beforeend', html);
             box.scrollTop = box.scrollHeight;
             return id;
+        }
+        function setAiTyping(id, label) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const lbl = el.querySelector('.typing-label');
+            if (lbl) lbl.textContent = label;
+            const box = document.getElementById('ai-chat-box');
+            if (box) box.scrollTop = box.scrollHeight;
         }
         function removeAiTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
 
@@ -2385,27 +2392,51 @@
         }
 
         // Llama al servidor intermedio. La API Key nunca viaja al navegador.
-        async function callAiraLLM(query) {
+        // Reintenta mientras el servidor "se despierta" (Render gratis duerme tras inactividad).
+        async function callAiraLLM(query, onStatus) {
             const history = aiHistory.slice(-10).map(function (h) {
                 return { role: h.role === 'model' ? 'assistant' : 'user', content: h.text };
             });
-            let res;
-            try {
-                res = await fetch(aireBaseUrl() + '/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: query, history: history })
-                });
-            } catch (e) {
-                throw new Error('No se pudo contactar al servidor de IA. Verifica que este encendido.');
+            const maxIntentos = 6;      // ~ hasta ~1 min esperando el arranque
+            const esperaMs = 6000;
+            let ultimoError = 'No se pudo contactar al servidor de IA.';
+            for (let intento = 1; intento <= maxIntentos; intento++) {
+                let res;
+                try {
+                    res = await fetch(aireBaseUrl() + '/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: query, history: history })
+                    });
+                } catch (e) {
+                    // Error de red: suele ser el servidor despertando. Reintentamos.
+                    ultimoError = 'No se pudo contactar al servidor de IA.';
+                    if (intento < maxIntentos) {
+                        if (onStatus) onStatus('despertando el servidor… (' + intento + ')');
+                        await new Promise(function (r) { setTimeout(r, esperaMs); });
+                        continue;
+                    }
+                    throw new Error(ultimoError);
+                }
+                // 502/503/504: el servidor todavia esta arrancando -> reintentar.
+                if (res.status === 502 || res.status === 503 || res.status === 504) {
+                    ultimoError = 'El servidor se esta iniciando.';
+                    if (intento < maxIntentos) {
+                        if (onStatus) onStatus('despertando el servidor… (' + intento + ')');
+                        await new Promise(function (r) { setTimeout(r, esperaMs); });
+                        continue;
+                    }
+                    throw new Error(ultimoError);
+                }
+                let data = null;
+                try { data = await res.json(); } catch (e) {}
+                if (!res.ok) {
+                    throw new Error((data && data.error) ? data.error : ('El servidor respondio ' + res.status));
+                }
+                const text = (data && data.text) ? String(data.text).trim() : '';
+                return text || '(sin respuesta)';
             }
-            let data = null;
-            try { data = await res.json(); } catch (e) {}
-            if (!res.ok) {
-                throw new Error((data && data.error) ? data.error : ('El servidor respondio ' + res.status));
-            }
-            const text = (data && data.text) ? String(data.text).trim() : '';
-            return text || '(sin respuesta)';
+            throw new Error(ultimoError);
         }
 
         function generateAiResponse(q) {
