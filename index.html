@@ -2275,9 +2275,13 @@
                 aiHistory.push({ role: 'user', text: query }, { role: 'model', text: answer });
                 if (aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
             } catch (err) {
-                // No damos respuestas prehechas: avisamos con claridad que fue el servidor.
                 removeAiTyping(typingId);
-                appendAiMessage('⚠️ No pude conectar con la IA en este momento. El servidor gratuito suele “dormirse” tras un rato sin uso y tarda hasta ~1 minuto en despertar. Esperá unos segundos y volvé a enviar tu pregunta.', 'ai');
+                const msg = (err && err.message) ? err.message : 'error desconocido';
+                if (msg === 'El servidor se esta iniciando.' || msg === 'No se pudo contactar al servidor de IA.') {
+                    appendAiMessage('⚠️ No pude conectar con la IA todavía. El servidor gratuito suele “dormirse” tras un rato sin uso y puede tardar en despertar. Esperá unos segundos y volvé a enviar tu pregunta.', 'ai');
+                } else {
+                    appendAiMessage('⚠️ La IA respondió con un error: ' + escapeHtml(msg) + '. Revisá la configuración del servidor (clave o modelo) y volvé a intentar.', 'ai');
+                }
             }
         }
 
@@ -2418,8 +2422,14 @@
                     }
                     throw new Error(ultimoError);
                 }
-                // 502/503/504: el servidor todavia esta arrancando -> reintentar.
+                // 502/503/504 SIN cuerpo JSON propio = el servidor todavia arranca -> reintentar.
+                // Si trae {error:...} es un fallo real del modelo -> mostrarlo, no reintentar.
                 if (res.status === 502 || res.status === 503 || res.status === 504) {
+                    let body = null;
+                    try { body = await res.json(); } catch (e) {}
+                    if (body && body.error) {
+                        throw new Error(body.error);
+                    }
                     ultimoError = 'El servidor se esta iniciando.';
                     if (intento < maxIntentos) {
                         if (onStatus) onStatus('despertando el servidor… (' + intento + ')');
