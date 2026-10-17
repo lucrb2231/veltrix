@@ -549,7 +549,7 @@
                 <div id="face-adv-card" class="hidden bg-cardbg border border-borderbg rounded-2xl p-6">
                     <h3 class="text-base font-bold text-white flex items-center gap-2 mb-1"><i class="fa-solid fa-shield-halved text-gold-500"></i> Reconocimiento facial avanzado</h3>
                     <p class="text-xs text-gray-400 mb-4">Segunda IA (Human / TensorFlow.js) que verifica cada rostro junto con la principal. Si dudan, se pide confirmación (Plan B).</p>
-                    <p id="fa-lock-note" class="hidden text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4"><i class="fa-solid fa-lock mr-1"></i> Solo el Administrador puede modificar estas opciones.</p>
+                    <p id="fa-lock-note" class="hidden text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4"><i class="fa-solid fa-lock mr-1"></i> Solo el Administrador, o quien él habilite, puede modificar estas opciones.</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-300">
                         <label class="flex items-center gap-2"><input type="checkbox" id="fa-enabled"> Activar verificación con IA 2</label>
                         <label class="flex items-center gap-2"><input type="checkbox" id="fa-live"> Anti-foto (detectar persona real)</label>
@@ -949,6 +949,7 @@
                     <div id="admin-pending-list" class="space-y-2 mb-6"></div>
 
                     <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-2">Usuarios del sistema</h3>
+                    <div class="flex flex-wrap items-center gap-2 mb-2"><span class="text-[11px] text-gray-400">Permiso para modificar el escaneo facial:</span><button onclick="adminFaceAdvAll(true)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Dar a todos</button><button onclick="adminFaceAdvAll(false)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/30">Quitar a todos</button></div>
                     <div id="admin-staff-list" class="space-y-2"></div>
                 </div>
             </section>
@@ -1329,10 +1330,10 @@
         };
 
         // ---- Panel "Reconocimiento facial avanzado" ----
-        function canEditFaceAdv() { return typeof isApprovedUser === 'function' && isApprovedUser() && typeof isAdminUser === 'function' && isAdminUser(); }
+        function canEditFaceAdv() { return typeof isApprovedUser === 'function' && isApprovedUser() && ((typeof isAdminUser === 'function' && isAdminUser()) || (currentUser && currentUser.faceAdv === true && currentUser.role !== 'lector')); }
         function requireFaceAdvAdmin() {
             if (canEditFaceAdv()) return true;
-            showToast('Solo el Administrador puede modificar la IA 2 y el Plan B.', 'error');
+            showToast('Solo el Administrador, o quien él habilite, puede modificar la IA 2 y el Plan B.', 'error');
             return false;
         }
         function applyFaceAdvLock() {
@@ -2918,7 +2919,7 @@
             if (changed) localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers));
             if (currentUser && !currentUser.role) {
                 const match = registeredUsers.find(u => (u.id || u.email || '').toLowerCase() === (currentUser.email || '').toLowerCase());
-                if (match) { currentUser = { name: match.name, email: match.id, role: match.role, status: match.status }; localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); }
+                if (match) { currentUser = { name: match.name, email: match.id, role: match.role, status: match.status, faceAdv: !!match.faceAdv }; localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); }
             }
         }
 
@@ -2966,7 +2967,7 @@
                 showToast(profile.status === 'rejected' ? 'El administrador rechazó tu solicitud de acceso.' : 'Tu cuenta fue creada. Un administrador tiene que aprobarla antes de que puedas ingresar.', 'error');
                 await fb.A.signOut(fb.auth); return;
             }
-            currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status, cargo: profile.cargo || 'Otro' };
+            currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status, cargo: profile.cargo || 'Otro', faceAdv: !!profile.faceAdv };
             closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success'); updateAuthHeader();
             startStudentsSync(); if (isAdminUser()) startAdminUsersSync();
         }
@@ -3191,9 +3192,26 @@
                 const isMe = currentUser && u.key === (currentUser.uid || currentUser.email);
                 const admin = u.role === 'admin';
                 const roleOptions = Object.entries(ROLES).filter(([k]) => k !== 'staff').map(([k, r]) => `<option value="${k}" ${u.role === k || (u.role === 'staff' && k === 'docente') ? 'selected' : ''}>${r.label}</option>`).join('');
-                return `<div class="flex items-center justify-between gap-3 bg-darkbg border border-borderbg rounded-xl p-3 flex-wrap"><div><p class="text-xs font-bold text-white">${escapeHtml(u.name || u.username)}${admin ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold-500/10 text-gold-500 border border-gold-500/30">ADMIN</span>' : ''}${u.status === 'rejected' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30">RECHAZADO</span>' : ''}</p><p class="text-[11px] text-gray-400">${escapeHtml(u.username || u.email || '')}</p></div><div class="flex gap-2 items-center">${isMe ? '<span class="text-[10px] text-gray-500 self-center">Vos (' + escapeHtml(roleLabel(u.role)) + ')</span>' : `<select onchange="adminSetRole('${u.key}', this.value)" class="bg-cardbg border border-borderbg rounded-lg text-[11px] text-gray-200 px-2 py-1.5">${roleOptions}</select><button onclick="adminRemoveUser('${u.key}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30">Eliminar</button>`}</div></div>`;
+                return `<div class="flex items-center justify-between gap-3 bg-darkbg border border-borderbg rounded-xl p-3 flex-wrap"><div><p class="text-xs font-bold text-white">${escapeHtml(u.name || u.username)}${admin ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold-500/10 text-gold-500 border border-gold-500/30">ADMIN</span>' : ''}${u.status === 'rejected' ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30">RECHAZADO</span>' : ''}</p><p class="text-[11px] text-gray-400">${escapeHtml(u.username || u.email || '')}</p></div><div class="flex gap-2 items-center">${isMe ? '<span class="text-[10px] text-gray-500 self-center">Vos (' + escapeHtml(roleLabel(u.role)) + ')</span>' : `${(!admin && u.role !== 'lector') ? `<button onclick="adminSetFaceAdv(['${u.key}'], ${!u.faceAdv})" title="Permitir modificar la configuración del escaneo facial" class="text-[11px] font-bold px-3 py-1.5 rounded-lg border ${u.faceAdv ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-darkbg text-gray-400 border-borderbg'}">${u.faceAdv ? '✔ Escaneo facial' : 'Escaneo facial'}</button>` : ''}<select onchange="adminSetRole('${u.key}', this.value)" class="bg-cardbg border border-borderbg rounded-lg text-[11px] text-gray-200 px-2 py-1.5">${roleOptions}</select><button onclick="adminRemoveUser('${u.key}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30">Eliminar</button>`}</div></div>`;
             }).join('') : `<p class="text-xs text-gray-500">No hay más usuarios.</p>`;
             updateAdminBadge(pending.length);
+        }
+
+        // El Administrador da o quita el permiso de modificar el escaneo facial (uno o varios usuarios).
+        async function adminSetFaceAdv(keys, value) {
+            if (!isAdminUser()) return;
+            try {
+                if (CLOUD_ENABLED) { for (const k of keys) await fb.F.updateDoc(fb.F.doc(fb.db, 'users', k), { faceAdv: !!value }); }
+                else { registeredUsers.forEach(u => { if (keys.includes(u.id)) u.faceAdv = !!value; }); localStorage.setItem('veltrix_users', JSON.stringify(registeredUsers)); renderAdminPanel(); }
+                showToast((value ? 'Permiso otorgado' : 'Permiso quitado') + ' (' + keys.length + (keys.length === 1 ? ' usuario' : ' usuarios') + '). Se aplica cuando vuelven a iniciar sesión.', 'success');
+            } catch (err) { console.error(err); showToast('No se pudo cambiar el permiso.', 'error'); }
+        }
+        function adminFaceAdvAll(value) {
+            if (!isAdminUser()) return;
+            const list = CLOUD_ENABLED ? adminUsers : registeredUsers.map(u => ({ key: u.id, role: u.role, status: u.status }));
+            const keys = list.filter(u => u.status === 'approved' && u.role !== 'admin' && u.role !== 'lector').map(u => u.key);
+            if (!keys.length) { showToast('No hay usuarios aprobados para cambiar.'); return; }
+            adminSetFaceAdv(keys, value);
         }
 
         function formatRequestDate(ts) { try { const date = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null); if (!date || isNaN(date)) return ''; return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5); } catch { return ''; } }
@@ -3215,7 +3233,7 @@
             if (!found) return authMsg('Usuario o contraseña incorrectos.');
             if (found.status === 'pending') return authMsg('Tu cuenta todavía no fue aprobada por un administrador.', 'info');
             if (found.status === 'rejected') return authMsg('El administrador rechazó tu solicitud de acceso.');
-            currentUser = { name: found.name, email: found.id || found.email, role: found.role || 'staff', status: found.status || 'approved', cargo: found.cargo || 'Otro' };
+            currentUser = { name: found.name, email: found.id || found.email, role: found.role || 'staff', status: found.status || 'approved', cargo: found.cargo || 'Otro', faceAdv: !!found.faceAdv };
             localStorage.setItem('veltrix_current_user', JSON.stringify(currentUser)); updateAuthHeader(); closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success');
         }
 
