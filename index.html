@@ -1100,6 +1100,10 @@
         // ============================================================
         const AIRA_BACKEND_URL = 'https://aira-ia.onrender.com';
 
+        // Proveedor de IA que usara el servidor: 'openrouter' (Inkling gratis),
+        // 'gemini' u 'openai'. Si lo dejas vacio, usa el que tenga AI_PROVIDER en Render.
+        const AIRA_PROVIDER = 'openrouter';
+
         // System state variables
         let students = JSON.parse(localStorage.getItem('veltrix_students') || '[]');
         let currentUser = CLOUD_ENABLED ? null : JSON.parse(localStorage.getItem('veltrix_current_user') || 'null');
@@ -2271,7 +2275,7 @@
                 return;
             }
 
-            // 3) Cualquier otra pregunta -> IA real en el servidor (Gemini).
+            // 3) Cualquier otra pregunta -> IA real en el servidor (OpenRouter / Gemini / OpenAI).
             const typingId = appendAiTyping();
             try {
                 const answer = await callAiraLLM(query, function (estado) { setAiTyping(typingId, estado); });
@@ -2392,7 +2396,7 @@
             try {
                 const res = await fetch(aireBaseUrl() + '/api/health', { cache: 'no-store' });
                 const data = await res.json();
-                if (!(data && (data.geminiConfigurado || data.openaiConfigurado))) {
+                if (!(data && (data.geminiConfigurado || data.openaiConfigurado || data.openrouterConfigurado))) {
                     setBasicMode();
                 }
             } catch (e) {
@@ -2415,7 +2419,7 @@
                     res = await fetch(aireBaseUrl() + '/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: query, history: history })
+                        body: JSON.stringify({ message: query, history: history, provider: AIRA_PROVIDER || undefined })
                     });
                 } catch (e) {
                     // Error de red: suele ser el servidor despertando. Reintentamos.
