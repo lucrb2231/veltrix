@@ -32,8 +32,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Face recognition model: detects a face and creates a 128-value biometric descriptor -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <!-- IA 2 (segunda opinion facial + anti-foto) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.5/dist/human.js"></script>
+    <!-- La IA 2 (Human) corre SOLO en el servidor: cargarla aca choca con face-api.js (versiones distintas de TensorFlow.js) -->
     <style>
         body {
             background-color: #0D0D0D;
@@ -547,14 +546,14 @@
                 </div>
 
                 <!-- Reconocimiento facial avanzado -->
-                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                <div id="face-adv-card" class="hidden bg-cardbg border border-borderbg rounded-2xl p-6">
                     <h3 class="text-base font-bold text-white flex items-center gap-2 mb-1"><i class="fa-solid fa-shield-halved text-gold-500"></i> Reconocimiento facial avanzado</h3>
                     <p class="text-xs text-gray-400 mb-4">Segunda IA (Human / TensorFlow.js) que verifica cada rostro junto con la principal. Si dudan, se pide confirmación (Plan B).</p>
                     <p id="fa-lock-note" class="hidden text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4"><i class="fa-solid fa-lock mr-1"></i> Solo el Administrador puede modificar estas opciones.</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-300">
                         <label class="flex items-center gap-2"><input type="checkbox" id="fa-enabled"> Activar verificación con IA 2</label>
                         <label class="flex items-center gap-2"><input type="checkbox" id="fa-live"> Anti-foto (detectar persona real)</label>
-                        <label class="flex items-center gap-2 md:col-span-2"><input type="checkbox" id="fa-server"> Procesar la IA 2 en el servidor (más seguro; si no responde, usa la del navegador)</label>
+                        <label class="flex items-center gap-2 md:col-span-2"><input type="checkbox" id="fa-server"> Procesar la IA 2 en el servidor (obligatorio: no corre en el navegador)</label>
                         <label>Modo<select id="fa-mode" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"><option value="max">Máxima precisión (toda duda se confirma)</option><option value="balanced">Equilibrado (la IA 2 resuelve dudas claras)</option></select></label>
                         <div class="grid grid-cols-2 gap-2"><label>Similitud mín.<input type="number" step="0.01" id="fa-sim" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"></label><label>Margen mín.<input type="number" step="0.01" id="fa-gap" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"></label></div>
                     </div>
@@ -1174,7 +1173,7 @@
             human: null, loading: null, pending: null, warned: false,
             async load() {
                 if (this.human) return this.human;
-                if (!window.Human) throw new Error('La librería de IA 2 no se cargó.');
+                if (!window.Human) throw new Error('La IA 2 funciona solo en el servidor (no se carga en el navegador).');
                 if (!this.loading) {
                     this.loading = (async () => {
                         const h = new Human.Human({
@@ -1269,7 +1268,7 @@
                 let s = null;
                 try { s = await this.embed(videoId, 5); }
                 catch (e) {
-                    if (!this.warned) { this.warned = true; showToast('IA 2 no disponible; se usa solo el reconocimiento principal.'); }
+                    if (!this.warned) { this.warned = true; showToast('IA 2 del servidor no disponible; se usa solo el reconocimiento principal.'); }
                     return res.student ? res : Object.assign({}, res, { student: null });
                 }
                 if (!s) return { student: null, reason: 'La segunda IA no pudo ver un rostro único y claro. Repetí el escaneo de frente y con buena luz.' };
@@ -1345,6 +1344,7 @@
                 el.classList.toggle('cursor-not-allowed', locked);
             });
             const note = document.getElementById('fa-lock-note'); if (note) note.classList.toggle('hidden', !locked);
+            const card = document.getElementById('face-adv-card'); if (card) card.classList.toggle('hidden', locked); // solo el Administrador ve el panel
         }
         function loadFaceAdvUi() {
             const g = id => document.getElementById(id); if (!g('fa-enabled')) return;
