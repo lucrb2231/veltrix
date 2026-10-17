@@ -32,6 +32,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Face recognition model: detects a face and creates a 128-value biometric descriptor -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- IA 2 (segunda opinion facial + anti-foto) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.5/dist/human.js"></script>
     <style>
         body {
             background-color: #0D0D0D;
@@ -542,6 +544,26 @@
                             <h3 id="stat-absent" class="text-2xl font-bold text-white">0</h3>
                         </div>
                     </div>
+                </div>
+
+                <!-- Reconocimiento facial avanzado -->
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-6">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2 mb-1"><i class="fa-solid fa-shield-halved text-gold-500"></i> Reconocimiento facial avanzado</h3>
+                    <p class="text-xs text-gray-400 mb-4">Segunda IA (Human / TensorFlow.js) que verifica cada rostro junto con la principal. Si dudan, se pide confirmación (Plan B).</p>
+                    <p id="fa-lock-note" class="hidden text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4"><i class="fa-solid fa-lock mr-1"></i> Solo el Administrador puede modificar estas opciones.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-300">
+                        <label class="flex items-center gap-2"><input type="checkbox" id="fa-enabled"> Activar verificación con IA 2</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" id="fa-live"> Anti-foto (detectar persona real)</label>
+                        <label class="flex items-center gap-2 md:col-span-2"><input type="checkbox" id="fa-server"> Procesar la IA 2 en el servidor (más seguro; si no responde, usa la del navegador)</label>
+                        <label>Modo<select id="fa-mode" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"><option value="max">Máxima precisión (toda duda se confirma)</option><option value="balanced">Equilibrado (la IA 2 resuelve dudas claras)</option></select></label>
+                        <div class="grid grid-cols-2 gap-2"><label>Similitud mín.<input type="number" step="0.01" id="fa-sim" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"></label><label>Margen mín.<input type="number" step="0.01" id="fa-gap" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"></label></div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 mt-4">
+                        <button id="fa-save" onclick="saveFaceAdvUi()" class="bg-gold-500 text-darkbg font-bold text-xs px-4 py-2 rounded-xl">Guardar</button>
+                        <button id="fa-test" onclick="testFaceGuardModel()" class="bg-borderbg text-xs px-4 py-2 rounded-xl border border-gray-700">Probar carga de IA 2</button>
+                        <span id="fa-status" class="text-[11px] text-gray-400"></span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-3">Los alumnos registrados antes necesitan re-registrar su rostro (con esta opción activa) para que la IA 2 los pueda verificar.</p>
                 </div>
 
                 <!-- Schedule Settings -->
@@ -1133,6 +1155,227 @@
             ENROLL_MAX_SPREAD: 0.45,     // distancia máxima entre las 3 muestras del mismo alumno
             DEBUG: false                // poné true para ver distancias en consola (muestra nombres de otros alumnos)
         };
+        /* =====================================================================
+         *  FaceGuard: IA 2 (Human / TensorFlow.js) + Plan B de confirmacion.
+         *  Segundo modelo facial independiente de face-api.js. Solo se acepta
+         *  la asistencia si ambos modelos coinciden; si dudan, se pide
+         *  confirmacion (docente elige entre los 2 candidatos o ingresa la cedula)
+         *  y se hace una verificacion 1 a 1 contra ese alumno.
+         * ===================================================================== */
+        const FACE_ADV_DEFAULT = { enabled: true, mode: 'max', liveness: true, minSim: 0.55, minGap: 0.04, server: true };
+        let FACE_ADV = Object.assign({}, FACE_ADV_DEFAULT, (function () { try { return JSON.parse(localStorage.getItem('veltrix_face_adv') || '{}'); } catch (e) { return {}; } })());
+        function applyFaceAdv() {
+            if (FACE_ADV.enabled && FACE_ADV.mode === 'max') { FACE_CFG.MATCH_THRESHOLD = 0.40; FACE_CFG.MATCH_MARGIN = 0.12; }
+            else { FACE_CFG.MATCH_THRESHOLD = 0.42; FACE_CFG.MATCH_MARGIN = 0.10; }
+        }
+        applyFaceAdv();
+
+        const FaceGuard = {
+            human: null, loading: null, pending: null, warned: false,
+            async load() {
+                if (this.human) return this.human;
+                if (!window.Human) throw new Error('La librería de IA 2 no se cargó.');
+                if (!this.loading) {
+                    this.loading = (async () => {
+                        const h = new Human.Human({
+                            modelBasePath: 'https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.5/models/',
+                            backend: 'webgl', debug: false,
+                            filter: { enabled: false }, gesture: { enabled: false }, body: { enabled: false },
+                            hand: { enabled: false }, object: { enabled: false }, segmentation: { enabled: false },
+                            face: { enabled: true, detector: { rotation: false, maxDetected: 2 }, mesh: { enabled: true },
+                                    iris: { enabled: false }, emotion: { enabled: false }, description: { enabled: true },
+                                    antispoof: { enabled: !!FACE_ADV.liveness }, liveness: { enabled: !!FACE_ADV.liveness } }
+                        });
+                        await h.load();
+                        this.human = h;
+                        return h;
+                    })().catch(e => { this.loading = null; throw e; });
+                }
+                return this.loading;
+            },
+            unit(v) { let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1; return v.map(x => x / n); },
+            mean(list) { const out = new Array(list[0].length).fill(0); list.forEach(v => v.forEach((x, i) => out[i] += x)); return out.map(x => x / list.length); },
+            sim(a, b) { if (!a || !b || a.length !== b.length) return -1; let d = 0; for (let i = 0; i < a.length; i++) d += a[i] * b[i]; return d; },
+            async embed(videoId, n) {
+                const h = await this.load(), video = document.getElementById(videoId);
+                const embs = []; let real = 1, live = 1;
+                for (let i = 0; i < n * 3 && embs.length < n; i++) {
+                    const r = await h.detect(video);
+                    const f = r.face && r.face.length === 1 ? r.face[0] : null;
+                    if (f && f.embedding && f.embedding.length && (f.faceScore == null || f.faceScore >= 0.6)) {
+                        embs.push(Array.from(f.embedding));
+                        if (f.real != null) real = Math.min(real, f.real);
+                        if (f.live != null) live = Math.min(live, f.live);
+                    }
+                    await wait(150);
+                }
+                if (embs.length < Math.ceil(n / 2)) return null;
+                return { emb: this.unit(this.mean(embs)), real, live };
+            },
+            // ---- Registro: guarda tambien la huella de la IA 2 ----
+            async enrollShot(videoId) {
+                if (!FACE_ADV.enabled) return;
+                if (FACE_ADV.server) {
+                    try {
+                        const r = await this.serverCall('/api/face/embed', { images: await this.frames(videoId, 4), liveness: !!FACE_ADV.liveness });
+                        if (r.embedding) { (this.pending = this.pending || []).push(r.embedding); return; }
+                    } catch (e) { console.warn('IA 2 servidor (registro):', e); }
+                }
+                try {
+                    const s = await this.embed(videoId, 4);
+                    if (s) (this.pending = this.pending || []).push(s.emb);
+                } catch (e) { console.warn('IA 2 (registro):', e); }
+            },
+            // ---- Comunicacion con la IA del servidor ----
+            async frames(videoId, n) {
+                const v = document.getElementById(videoId), out = [], w = 320;
+                const hgt = Math.round(w * (v.videoHeight || 480) / (v.videoWidth || 640));
+                const c = document.createElement('canvas'); c.width = w; c.height = hgt;
+                const x = c.getContext('2d');
+                for (let i = 0; i < n; i++) { x.drawImage(v, 0, 0, w, hgt); out.push(c.toDataURL('image/jpeg', 0.85)); await wait(200); }
+                return out;
+            },
+            async serverCall(path, body) {
+                const res = await fetch(aireBaseUrl() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                let data = null; try { data = await res.json(); } catch (e) {}
+                if (!res.ok || !data) throw new Error((data && data.error) || ('Servidor ' + res.status));
+                return data;
+            },
+            async reviewServer(res, scan, videoId) {
+                const cands = (res.candidates || []).filter(c => Array.isArray(c.faceDescriptor2));
+                try {
+                    const r = await this.serverCall('/api/face/verify', {
+                        images: await this.frames(videoId, 5), liveness: !!FACE_ADV.liveness, minSim: FACE_ADV.minSim, minGap: FACE_ADV.minGap,
+                        candidates: cands.map(c => ({ id: c.id, d2: c.faceDescriptor2 }))
+                    });
+                    if (!r.faceOk) return { student: null, reason: 'La IA del servidor no pudo ver un rostro único y claro. Repetí el escaneo de frente y con buena luz.' };
+                    if (!r.liveOk) return { student: null, reason: 'No se pudo confirmar que sea una persona real (posible foto o pantalla). No se registró asistencia.' };
+                    const ranked2 = r.ranked.map(x => ({ st: students.find(s => s.id === x.id), sim: x.sim })).filter(x => x.st);
+                    return await this.decide(res, scan, ranked2, r.minSim, r.minGap);
+                } catch (e) { console.warn('IA 2 servidor no disponible, se usa la local:', e); return null; }
+            },
+            takePending() {
+                const p = this.pending; this.pending = null;
+                if (!p || !p.length) return undefined;
+                return this.unit(this.mean(p)).map(x => Math.round(x * 1000) / 1000);
+            },
+            // ---- Asistencia: revision con IA 2 + Plan B ----
+            async review(res, scan, videoId, box) {
+                if (!FACE_ADV.enabled) return res;
+                const doubtful = res.ambiguous && res.candidates && res.candidates.length;
+                if (!res.student && !doubtful) return res;
+                if (box) box.innerHTML = '<div class="py-6 text-center"><i class="fa-solid fa-spinner fa-spin text-gold-400 text-2xl"></i><p class="text-xs text-gray-400 mt-3">Verificando con la segunda IA…</p></div>';
+                if (FACE_ADV.server) { const rs = await this.reviewServer(res, scan, videoId); if (rs) return rs; }
+                let s = null;
+                try { s = await this.embed(videoId, 5); }
+                catch (e) {
+                    if (!this.warned) { this.warned = true; showToast('IA 2 no disponible; se usa solo el reconocimiento principal.'); }
+                    return res.student ? res : Object.assign({}, res, { student: null });
+                }
+                if (!s) return { student: null, reason: 'La segunda IA no pudo ver un rostro único y claro. Repetí el escaneo de frente y con buena luz.' };
+                if (FACE_ADV.liveness && (s.real < 0.5 || s.live < 0.5)) return { student: null, reason: 'No se pudo confirmar que sea una persona real (posible foto o pantalla). No se registró asistencia.' };
+                const ranked2 = students.filter(st => Array.isArray(st.faceDescriptor2) && st.status !== 'Expulsado')
+                    .map(st => ({ st, sim: this.sim(s.emb, st.faceDescriptor2) })).sort((a, b) => b.sim - a.sim);
+                return this.decide(res, scan, ranked2, FACE_ADV.minSim, FACE_ADV.minGap);
+            },
+            async decide(res, scan, ranked2, minSim, minGap) {
+                const top = ranked2[0], next = ranked2[1];
+                const gap = top && next ? top.sim - next.sim : 1;
+                const tag = top ? ' (IA 2: ' + top.sim.toFixed(2) + ')' : '';
+                if (res.student) {
+                    const mine = ranked2.find(r => r.st === res.student);
+                    if (!mine) { showToast('Identificado por IA 1. Re-registrá el rostro para activar la IA 2.'); return res; }
+                    if (top.st === res.student && mine.sim >= minSim && gap >= minGap) { res.note = tag; return res; }
+                    return this.askPlanB(res, scan, [res.student, top && top.st !== res.student ? top.st : null], 'Las dos IA no coinciden del todo' + tag + '.');
+                }
+                const cands = res.candidates;
+                if (FACE_ADV.mode !== 'max' && top && cands.includes(top.st) && top.sim >= minSim + 0.10 && gap >= minGap * 1.5) {
+                    showToast('Duda resuelta por la IA 2' + tag + '.');
+                    return Object.assign({}, res, { student: top.st, ambiguous: false });
+                }
+                return this.askPlanB(res, scan, cands, 'El rostro se parece a más de un alumno' + tag + '.');
+            },
+            async askPlanB(res, scan, cands, why) {
+                const list = cands.filter(Boolean).filter((c, i, a) => a.indexOf(c) === i);
+                const picked = await this.confirmModal(list, why);
+                if (!picked) return { student: null, reason: 'Identidad no confirmada. No se registró asistencia.' };
+                const refs = getStoredFaceDescriptors(picked);
+                const dist = refs.length ? minDistanceToRefs(scan.descriptor, refs) : Infinity;
+                if (dist > FACE_CFG.MATCH_THRESHOLD + 0.12) return { student: null, reason: 'El rostro no coincide con ' + picked.name + ' en la verificación 1 a 1. No se registró asistencia.' };
+                showToast('Identidad confirmada: ' + picked.name);
+                return Object.assign({}, res, { student: picked, ambiguous: false });
+            },
+            confirmModal(list, why) {
+                return new Promise(resolve => {
+                    const ov = document.createElement('div');
+                    ov.className = 'fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-4';
+                    const btns = list.map((c, i) => '<button data-i="' + i + '" class="w-full text-left bg-darkbg hover:bg-borderbg border border-borderbg rounded-xl px-4 py-3 text-xs text-white transition"><strong>' + escapeHtml(c.name) + '</strong><span class="text-gray-400"> · ' + escapeHtml(c.grade || '') + '</span></button>').join('');
+                    ov.innerHTML = '<div class="bg-cardbg border border-borderbg rounded-2xl p-6 w-full max-w-sm space-y-3">' +
+                        '<h3 class="text-base font-bold text-white"><i class="fa-solid fa-user-check text-gold-500 mr-2"></i>Confirmá la identidad</h3>' +
+                        '<p class="text-xs text-gray-400">' + escapeHtml(why) + ' Elegí quién es o ingresá la cédula:</p>' + btns +
+                        '<div class="flex gap-2"><input id="fg-ci" placeholder="Cédula" class="flex-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-gold-500"><button id="fg-ci-ok" class="bg-gold-500 text-darkbg font-bold text-xs px-4 rounded-xl">OK</button></div>' +
+                        '<button id="fg-no" class="w-full text-xs text-gray-400 hover:text-white py-2">Cancelar (no registrar)</button></div>';
+                    const done = v => { ov.remove(); resolve(v); };
+                    ov.querySelectorAll('button[data-i]').forEach(b => b.onclick = () => done(list[+b.dataset.i]));
+                    ov.querySelector('#fg-no').onclick = () => done(null);
+                    ov.querySelector('#fg-ci-ok').onclick = () => {
+                        const ci = ov.querySelector('#fg-ci').value.trim();
+                        const st = students.find(x => x.ci === ci && x.status !== 'Expulsado');
+                        if (!st) { showToast('Cédula no encontrada.', 'error'); return; }
+                        done(st);
+                    };
+                    document.body.appendChild(ov);
+                });
+            }
+        };
+
+        // ---- Panel "Reconocimiento facial avanzado" ----
+        function canEditFaceAdv() { return typeof isApprovedUser === 'function' && isApprovedUser() && typeof isAdminUser === 'function' && isAdminUser(); }
+        function requireFaceAdvAdmin() {
+            if (canEditFaceAdv()) return true;
+            showToast('Solo el Administrador puede modificar la IA 2 y el Plan B.', 'error');
+            return false;
+        }
+        function applyFaceAdvLock() {
+            const locked = !canEditFaceAdv();
+            ['fa-enabled', 'fa-live', 'fa-server', 'fa-mode', 'fa-sim', 'fa-gap', 'fa-save', 'fa-test'].forEach(id => {
+                const el = document.getElementById(id); if (!el) return;
+                el.disabled = locked;
+                el.classList.toggle('opacity-50', locked);
+                el.classList.toggle('cursor-not-allowed', locked);
+            });
+            const note = document.getElementById('fa-lock-note'); if (note) note.classList.toggle('hidden', !locked);
+        }
+        function loadFaceAdvUi() {
+            const g = id => document.getElementById(id); if (!g('fa-enabled')) return;
+            g('fa-enabled').checked = !!FACE_ADV.enabled; g('fa-mode').value = FACE_ADV.mode;
+            g('fa-live').checked = !!FACE_ADV.liveness; g('fa-server').checked = !!FACE_ADV.server; g('fa-sim').value = FACE_ADV.minSim; g('fa-gap').value = FACE_ADV.minGap;
+            applyFaceAdvLock();
+        }
+        function saveFaceAdvUi() {
+            if (!requireFaceAdvAdmin()) return;
+            const g = id => document.getElementById(id);
+            FACE_ADV = { enabled: g('fa-enabled').checked, mode: g('fa-mode').value, liveness: g('fa-live').checked, server: g('fa-server').checked,
+                minSim: Math.min(0.95, Math.max(0.2, parseFloat(g('fa-sim').value) || 0.55)),
+                minGap: Math.min(0.5, Math.max(0, parseFloat(g('fa-gap').value) || 0.04)) };
+            localStorage.setItem('veltrix_face_adv', JSON.stringify(FACE_ADV));
+            FaceGuard.human = null; FaceGuard.loading = null; applyFaceAdv(); loadFaceAdvUi();
+            showToast('Opciones avanzadas guardadas.', 'success');
+        }
+        async function testFaceGuardModel() {
+            if (!requireFaceAdvAdmin()) return;
+            const el = document.getElementById('fa-status'); el.textContent = 'Comprobando…'; el.className = 'text-[11px] text-gray-400';
+            try {
+                if (document.getElementById('fa-server').checked) {
+                    const res = await fetch(aireBaseUrl() + '/api/face/status?warm=1', { cache: 'no-store' });
+                    const d = await res.json();
+                    if (d.available && d.loaded) { el.textContent = '✔ IA 2 del servidor lista.'; el.className = 'text-[11px] text-emerald-400'; return; }
+                    el.textContent = '✖ Servidor sin IA facial: ' + String(d.error || 'no cargó el modelo').split('\n')[0]; el.className = 'text-[11px] text-rose-400'; return;
+                }
+                await FaceGuard.load(); el.textContent = '✔ IA 2 (navegador) lista.'; el.className = 'text-[11px] text-emerald-400';
+            } catch (e) { el.textContent = '✖ No se pudo cargar: ' + (e.message || e); el.className = 'text-[11px] text-rose-400'; }
+        }
+        document.addEventListener('DOMContentLoaded', loadFaceAdvUi);
         const ENROLL_STEPS = [
             { label: 'neutra',    text: 'Paso 1/3: mirá de frente, expresión neutra' },
             { label: 'sonrisa',   text: 'Paso 2/3: sonreí mirando de frente' },
@@ -1410,12 +1653,14 @@
         // Captura 3 muestras con poses distintas y verifica que sean de la misma persona.
         async function captureEnrollmentSamples(videoId) {
             const samples = [];
+            FaceGuard.pending = null;
             for (const step of ENROLL_STEPS) {
                 setFaceButtonBusy(true, step.text);
                 showToast(step.text);
                 await wait(1500);
                 const scan = await captureFaceScan(videoId, FACE_REGISTER_FRAMES);
                 samples.push({ label: step.label, d: scan.descriptor });
+                await FaceGuard.enrollShot(videoId);
             }
             for (let i = 0; i < samples.length; i++) {
                 for (let j = i + 1; j < samples.length; j++) {
@@ -1464,7 +1709,7 @@
                 })));
             }
 
-            const info = { distance: best.distance, gap };
+            const info = { distance: best.distance, gap, candidates: ranked.slice(0, 2).map(x => x.student) };
             if (best.distance > FACE_CFG.MATCH_THRESHOLD) return { student: null, ...info };
             if (voteRatio < FACE_MIN_VOTE_RATIO || gap < FACE_CFG.MATCH_MARGIN) return { student: null, ambiguous: true, ...info };
             return { student: best.student, ...info };
@@ -1619,6 +1864,7 @@
                     studentWithSameCi.category = category;
                     studentWithSameCi.faceSamples = samples;
                     studentWithSameCi.faceDescriptor = centroid;
+                    { const d2 = FaceGuard.takePending(); if (d2) studentWithSameCi.faceDescriptor2 = d2; }
                     delete studentWithSameCi.signature;
                     studentWithSameCi.biometricVersion = 'face-api-128-v2';
                     successMsg = `Biometría de ${name} actualizada correctamente.`;
@@ -1631,6 +1877,7 @@
                         category,
                         faceSamples: samples,      // 3 referencias: [{label, d:[128]}]
                         faceDescriptor: centroid,  // promedio (compatibilidad)
+                        faceDescriptor2: FaceGuard.takePending(), // huella de la IA 2
                         biometricVersion: 'face-api-128-v2',
                         status: 'Ausente',
                         statusDate: getLocalDateKey(),
@@ -1701,7 +1948,8 @@
             const currentHours = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
             const todayKey = getLocalDateKey(now);
 
-            const matchResult = findBestFaceMatch(scan);
+            let matchResult = findBestFaceMatch(scan);
+            matchResult = await FaceGuard.review(matchResult, scan, 'attend-video', scanBox);
             const bestMatch = matchResult.student;
 
             // Solo se identifica con coincidencia clara: distancia, votos y margen frente al segundo.
@@ -1712,7 +1960,7 @@
                         <i class="fa-solid fa-user-slash"></i>
                     </div>
                     <h3 class="text-base font-bold text-white">Rostro no reconocido</h3>
-                    <p class="text-xs text-gray-400 mt-1">${matchResult.ambiguous ? 'El rostro se parece a más de un alumno o el escaneo no fue concluyente. Repetí el escaneo con mejor luz y de frente.' : 'No se marcó asistencia porque no existe una coincidencia facial segura.'}</p>
+                    <p class="text-xs text-gray-400 mt-1">${matchResult.reason ? escapeHtml(matchResult.reason) : matchResult.ambiguous ? 'El rostro se parece a más de un alumno o el escaneo no fue concluyente. Repetí el escaneo con mejor luz y de frente.' : 'No se marcó asistencia porque no existe una coincidencia facial segura.'}</p>
                 `;
                 showToast("Rostro no reconocido. No se registró asistencia.", "error");
                 return;
@@ -2370,6 +2618,7 @@
             });
             const note = document.getElementById('tolerance-lock-note');
             if (note) note.classList.toggle('hidden', !locked);
+            if (typeof applyFaceAdvLock === 'function') applyFaceAdvLock();
         }
 
         function updateAiStatus() {
