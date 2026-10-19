@@ -2956,7 +2956,7 @@
         }
 
         // ---------- Firebase ----------
-        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, adminUsers = [];
+        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, unsubAgenda = null, adminUsers = [];
         const syncedJson = new Map();
 
         async function initCloud() {
@@ -2975,6 +2975,7 @@
         async function onCloudAuthChange(user) {
             if (unsubStudents) { unsubStudents(); unsubStudents = null; }
             if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+            if (unsubAgenda) { unsubAgenda(); unsubAgenda = null; }
             if (!user) { currentUser = null; adminUsers = []; updateAuthHeader(); return; }
             const { doc, getDoc, setDoc, writeBatch, serverTimestamp } = fb.F;
             const loginId = user.email && user.email.endsWith('@' + USERNAME_DOMAIN) ? user.email.split('@')[0] : user.email;
@@ -3001,7 +3002,7 @@
             }
             currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status, cargo: profile.cargo || 'Otro', faceAdv: !!profile.faceAdv };
             closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success'); updateAuthHeader();
-            startStudentsSync(); if (isAdminUser()) startAdminUsersSync();
+            startStudentsSync(); startPublicAgendaSync(); if (isAdminUser()) startAdminUsersSync();
         }
 
         function renderAllStudents() { renderStudentsTable(); updateDashboardMetrics(); populateJustificationSelect(); }
@@ -3446,20 +3447,76 @@
             e.target.reset();
         }
         function addPublicEvent(title, datetime, desc) {
-            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración' };
-            publicEvents.push(ev);
-            savePublicEvents();
-            agendaSeenPublic.add(ev.id); // quien lo crea ya lo "vio"
+            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración', createdAt: Date.now() };
+            agendaSeenPublic.add(ev.id); // quien lo crea ya lo "vio": no se avisa a sí mismo
             saveAgendaMeta();
-            renderAgenda(); updateAgendaBadge();
-            showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
+            if (CLOUD_ENABLED && fb && currentUser && currentUser.uid) {
+                // Se guarda en la base de datos compartida: a todos los usuarios con la página abierta les llega la tarjeta en vivo.
+                const { doc, setDoc } = fb.F;
+                setDoc(doc(fb.db, 'agenda_public', ev.id), ev).then(function () {
+                    showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
+                }).catch(function (err) {
+                    console.error(err);
+                    showToast('No se pudo publicar el evento para todos. Revisá las reglas de Firestore (agenda_public).', 'error');
+                });
+                // Si el guardado falla, la suscripcion en vivo lo vuelve a quitar de la lista.
+            } else {
+                publicEvents.push(ev);
+                savePublicEvents();
+                renderAgenda(); updateAgendaBadge();
+                showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
+            }
             return ev;
+        }
+
+        // Agenda pública compartida (Firestore, colección agenda_public): llega a todos en tiempo real.
+        function startPublicAgendaSync() {
+            if (!(CLOUD_ENABLED && fb)) return;
+            try {
+                const { collection, onSnapshot, doc, setDoc } = fb.F;
+                let first = true;
+                unsubAgenda = onSnapshot(collection(fb.db, 'agenda_public'), function (snap) {
+                    const list = snap.docs.map(function (d) { return d.data(); }).filter(function (e) { return e && e.id && e.datetime; });
+                    if (first) {
+                        first = false;
+                        // Primera vez en este navegador: los eventos que ya existían no se avisan como "nuevos".
+                        if (localStorage.getItem('veltrix_agenda_cloud_init') === null) {
+                            list.forEach(function (e) { agendaSeenPublic.add(e.id); });
+                            localStorage.setItem('veltrix_agenda_cloud_init', '1');
+                            saveAgendaMeta();
+                        }
+                        // Eventos públicos que solo existían en este navegador (de antes): se suben si tenés permiso.
+                        if (canManagePublicAgenda()) {
+                            const cloudIds = new Set(list.map(function (e) { return e.id; }));
+                            publicEvents.filter(function (e) { return e && e.id && !cloudIds.has(e.id); }).forEach(function (e) {
+                                agendaSeenPublic.add(e.id);
+                                setDoc(doc(fb.db, 'agenda_public', e.id), e).catch(function (err) { console.error(err); });
+                            });
+                        }
+                    }
+                    publicEvents = list;
+                    savePublicEvents();
+                    renderAgenda();
+                    updateAgendaBadge();
+                    checkAgendaNotifications(); // muestra la tarjeta de los eventos nuevos que este usuario no vio
+                }, function (err) {
+                    console.error(err);
+                    showToast('No se pudo leer la agenda pública. Revisá las reglas de Firestore (agenda_public).', 'error');
+                });
+            } catch (err) { console.error(err); }
         }
 
         function deleteAgendaEvent(scope, id) {
             if (scope === 'public') {
                 if (!canManagePublicAgenda()) { showToast('Solo un usuario de rango alto puede modificar la agenda pública.', 'error'); return; }
                 publicEvents = publicEvents.filter(e => e.id !== id); savePublicEvents();
+                if (CLOUD_ENABLED && fb) {
+                    const { doc, deleteDoc } = fb.F;
+                    deleteDoc(doc(fb.db, 'agenda_public', id)).catch(function (err) {
+                        console.error(err);
+                        showToast('No se pudo eliminar el evento para todos. Revisá las reglas de Firestore (agenda_public).', 'error');
+                    });
+                }
             } else {
                 personalEvents = personalEvents.filter(e => e.id !== id); savePersonalEvents();
             }
