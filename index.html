@@ -2976,7 +2976,13 @@
             if (unsubStudents) { unsubStudents(); unsubStudents = null; }
             if (unsubUsers) { unsubUsers(); unsubUsers = null; }
             if (unsubAgenda) { unsubAgenda(); unsubAgenda = null; }
-            if (!user) { currentUser = null; adminUsers = []; updateAuthHeader(); return; }
+            if (!user) {
+                currentUser = null; adminUsers = []; updateAuthHeader();
+                publicEvents = []; savePublicEvents(); renderAgenda(); updateAgendaBadge();
+                document.querySelectorAll('#agenda-popups .ap-card').forEach(function (c) { c.remove(); });
+                if (typeof updateAgendaPopupsUi === 'function') updateAgendaPopupsUi();
+                return;
+            }
             const { doc, getDoc, setDoc, writeBatch, serverTimestamp } = fb.F;
             const loginId = user.email && user.email.endsWith('@' + USERNAME_DOMAIN) ? user.email.split('@')[0] : user.email;
             let profile = null;
@@ -3306,9 +3312,27 @@
         // ================== AGENDA (eventos personales y públicos) ==================
         let personalEvents = [];
         let publicEvents = JSON.parse(localStorage.getItem('veltrix_agenda_public') || '[]');
-        let agendaReminded = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_reminded') || '[]'));
-        let agendaSeenPublic = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_seen_public') || 'null') || []);
-        let agendaSeenInitialized = localStorage.getItem('veltrix_agenda_seen_public') !== null;
+        // Lo "ya avisado / ya visto" se guarda POR USUARIO (antes era por navegador, y en una misma compu
+        // la segunda cuenta heredaba lo que ya había visto la primera y no recibía el aviso).
+        let agendaMetaOwner = null;
+        let agendaReminded = new Set();
+        let agendaSeenPublic = new Set();
+        let agendaSeenInitialized = false;
+        function agendaMetaSuffix() {
+            const id = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.uid || currentUser.email || 'anon') : 'anon';
+            return String(id).toLowerCase();
+        }
+        function loadAgendaMeta() {
+            const suf = agendaMetaSuffix();
+            if (agendaMetaOwner === suf) return false;
+            agendaMetaOwner = suf;
+            try { agendaReminded = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_reminded_' + suf) || '[]')); } catch (e) { agendaReminded = new Set(); }
+            const raw = localStorage.getItem('veltrix_agenda_seen_public_' + suf);
+            try { agendaSeenPublic = new Set(JSON.parse(raw || '[]')); } catch (e) { agendaSeenPublic = new Set(); }
+            agendaSeenInitialized = raw !== null;
+            loadAgendaSnoozed();
+            return true;
+        }
         let agendaTimer = null;
 
         function personalAgendaKey() {
@@ -3323,14 +3347,16 @@
         }
         function savePublicEvents() { localStorage.setItem('veltrix_agenda_public', JSON.stringify(publicEvents)); }
         function saveAgendaMeta() {
-            localStorage.setItem('veltrix_agenda_reminded', JSON.stringify([...agendaReminded]));
-            localStorage.setItem('veltrix_agenda_seen_public', JSON.stringify([...agendaSeenPublic]));
+            const suf = agendaMetaOwner || agendaMetaSuffix();
+            localStorage.setItem('veltrix_agenda_reminded_' + suf, JSON.stringify([...agendaReminded]));
+            localStorage.setItem('veltrix_agenda_seen_public_' + suf, JSON.stringify([...agendaSeenPublic]));
         }
         function canManagePublicAgenda() {
             return isApprovedUser() && !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'coordinador');
         }
 
         function initAgenda() {
+            loadAgendaMeta();
             loadPersonalEvents();
             // En el primer arranque de este navegador, marcamos los eventos públicos ya existentes como vistos
             // para no inundar de notificaciones; a partir de ahí sí avisamos de los nuevos.
@@ -3342,6 +3368,10 @@
             agendaTimer = setInterval(checkAgendaNotifications, 15000); // revisa cada 15 s
         }
         function refreshAgendaForUser() {
+            if (loadAgendaMeta()) { // cambió el usuario: se limpian las tarjetas del anterior
+                document.querySelectorAll('#agenda-popups .ap-card').forEach(function (c) { c.remove(); });
+                if (typeof updateAgendaPopupsUi === 'function') updateAgendaPopupsUi();
+            }
             loadPersonalEvents();
             renderAgenda();
             updateAgendaBadge();
@@ -3479,10 +3509,14 @@
                     const list = snap.docs.map(function (d) { return d.data(); }).filter(function (e) { return e && e.id && e.datetime; });
                     if (first) {
                         first = false;
-                        // Primera vez en este navegador: los eventos que ya existían no se avisan como "nuevos".
-                        if (localStorage.getItem('veltrix_agenda_cloud_init') === null) {
-                            list.forEach(function (e) { agendaSeenPublic.add(e.id); });
-                            localStorage.setItem('veltrix_agenda_cloud_init', '1');
+                        loadAgendaMeta();
+                        // Primera vez de este usuario con la agenda en la nube: los eventos VIEJOS no se avisan como "nuevos"
+                        // (para no llenar la pantalla), pero los publicados en las últimas 24 h sí.
+                        const initKey = 'veltrix_agenda_cloud_init_' + agendaMetaSuffix();
+                        if (localStorage.getItem(initKey) === null) {
+                            const limite = Date.now() - 24 * 3600 * 1000;
+                            list.forEach(function (e) { if (!e.createdAt || e.createdAt < limite) agendaSeenPublic.add(e.id); });
+                            localStorage.setItem(initKey, '1');
                             saveAgendaMeta();
                         }
                         // Eventos públicos que solo existían en este navegador (de antes): se suben si tenés permiso.
@@ -3494,6 +3528,7 @@
                             });
                         }
                     }
+                    console.log('[Agenda] eventos públicos en la nube: ' + list.length);
                     publicEvents = list;
                     savePublicEvents();
                     renderAgenda();
@@ -3527,8 +3562,10 @@
 
         // ===== Avisos de agenda estilo Checker Plus: tarjeta emergente con Posponer / Descartar =====
         let agendaSnoozed = {};
-        try { agendaSnoozed = JSON.parse(localStorage.getItem('veltrix_agenda_snoozed') || '{}') || {}; } catch (e) { agendaSnoozed = {}; }
-        function saveAgendaSnoozed() { try { localStorage.setItem('veltrix_agenda_snoozed', JSON.stringify(agendaSnoozed)); } catch (e) {} }
+        function loadAgendaSnoozed() {
+            try { agendaSnoozed = JSON.parse(localStorage.getItem('veltrix_agenda_snoozed_' + agendaMetaSuffix()) || '{}') || {}; } catch (e) { agendaSnoozed = {}; }
+        }
+        function saveAgendaSnoozed() { try { localStorage.setItem('veltrix_agenda_snoozed_' + (agendaMetaOwner || agendaMetaSuffix()), JSON.stringify(agendaSnoozed)); } catch (e) {} }
 
         function allAgendaEvents() {
             return [
@@ -3665,6 +3702,7 @@
         });
 
         function checkAgendaNotifications() {
+            if (CLOUD_ENABLED && !currentUser) return; // sin sesión no se muestran avisos de la agenda
             const now = Date.now();
             // Avisar de nuevos eventos públicos (futuros) que este navegador aún no vio.
             publicEvents.forEach(ev => {
