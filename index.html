@@ -353,43 +353,11 @@
             }
             .staff-card:hover::after { opacity: 0; }
         }
-
-        /* ===== Avisos de agenda estilo "Checker Plus for Google Calendar" ===== */
-        #agenda-popups { position: fixed; right: 16px; bottom: 16px; z-index: 110; display: flex; flex-direction: column-reverse; gap: 10px; width: 360px; max-width: calc(100vw - 32px); pointer-events: none; }
-        .ap-card { pointer-events: auto; background: #1E1E1E; border: 1px solid #2A2A2A; border-left: 5px solid #FFD700; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.55); padding: 12px 14px 10px; animation: ap-in 260ms cubic-bezier(.16,1,.3,1) both; position: relative; }
-        .ap-card.ap-public { border-left-color: #22d3ee; }
-        .ap-card.ap-out { animation: ap-out 180ms ease-in both; }
-        @keyframes ap-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
-        @keyframes ap-out { to { opacity: 0; transform: translateX(24px); } }
-        .ap-head { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: #9CA3AF; margin-bottom: 6px; padding-right: 22px; }
-        .ap-head i { color: #FFD700; }
-        .ap-card.ap-public .ap-head i { color: #22d3ee; }
-        .ap-x { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 8px; color: #9CA3AF; background: transparent; border: 0; cursor: pointer; font-size: 12px; }
-        .ap-x:hover { background: #2A2A2A; color: #fff; }
-        .ap-title { font-size: 15px; font-weight: 700; color: #fff; line-height: 1.25; overflow-wrap: anywhere; }
-        .ap-time { font-size: 12px; color: #D1D5DB; margin-top: 3px; }
-        .ap-when { font-size: 12px; font-weight: 700; color: #FFD700; margin-top: 2px; }
-        .ap-card.ap-public .ap-when { color: #22d3ee; }
-        .ap-when.ap-now { color: #f87171; }
-        .ap-desc { font-size: 11px; color: #9CA3AF; margin-top: 5px; overflow-wrap: anywhere; }
-        .ap-actions { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #2A2A2A; flex-wrap: wrap; }
-        .ap-btn { font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 8px; border: 1px solid #2A2A2A; background: #0D0D0D; color: #E5E7EB; cursor: pointer; transition: background .15s, color .15s; }
-        .ap-btn:hover { background: #2A2A2A; }
-        .ap-btn.ap-primary { background: #FFD700; color: #0D0D0D; border-color: #FFD700; }
-        .ap-btn.ap-primary:hover { background: #D4AF37; }
-        .ap-snooze-wrap { position: relative; }
-        .ap-snooze-menu { display: none; position: absolute; bottom: calc(100% + 6px); left: 0; min-width: 130px; background: #0D0D0D; border: 1px solid #2A2A2A; border-radius: 10px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 2; }
-        .ap-snooze-menu.ap-open { display: block; }
-        .ap-snooze-menu button { display: block; width: 100%; text-align: left; font-size: 11px; color: #E5E7EB; background: transparent; border: 0; border-radius: 6px; padding: 6px 8px; cursor: pointer; }
-        .ap-snooze-menu button:hover { background: #2A2A2A; }
-        .ap-all { pointer-events: auto; align-self: flex-end; font-size: 11px; font-weight: 700; color: #E5E7EB; background: #1E1E1E; border: 1px solid #2A2A2A; border-radius: 999px; padding: 5px 12px; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
-        .ap-all:hover { background: #2A2A2A; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col bg-darkbg text-gray-200">
 
     <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
-    <div id="agenda-popups" aria-live="polite"></div>
 
     <header class="bg-cardbg/95 backdrop-blur border-b border-borderbg sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -886,8 +854,8 @@
                         <button onclick="askPreset('¿Cómo funciona el reconocimiento biométrico?')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
                             ¿Cómo funciona el reconocimiento facial?
                         </button>
-                        <button onclick="askPreset('Explicame la fotosíntesis en 3 líneas')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
-                            Hacele una pregunta libre
+                        <button onclick="askRandomQuestion()" title="Cada toque hace una pregunta distinta" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
+                            <i class="fa-solid fa-dice mr-1"></i>Hacele una pregunta libre
                         </button>
                         <button onclick="askPreset('Agendame una reunión mañana a las 10:00')" class="bg-darkbg border border-borderbg hover:border-gold-500/50 text-gray-400 hover:text-white px-3 py-1.5 rounded-full flex-shrink-0 transition text-[11px]">
                             Agendame un evento
@@ -932,9 +900,19 @@
                         <button id="agenda-notif-btn" onclick="enableAgendaNotifications()" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold text-[11px] px-3 py-2 rounded-xl flex items-center gap-2 transition"><i class="fa-solid fa-bell"></i> Activar avisos</button>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Modo de vista (opcional): ver todo, linea de tiempo, solo lo personal o solo lo que agrega la institucion -->
+                    <div class="mb-5 flex items-center gap-2 flex-wrap">
+                        <span class="text-[11px] text-gray-400 mr-1"><i class="fa-solid fa-eye mr-1 text-gold-500"></i>Ver:</span>
+                        <div id="agenda-view-chips" class="flex items-center gap-2 flex-wrap"></div>
+                    </div>
+                    <div id="agenda-card-timeline" class="hidden bg-darkbg border border-borderbg rounded-2xl p-5 mb-6">
+                        <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-1 flex items-center gap-2"><i class="fa-solid fa-timeline"></i> Línea de tiempo</h3>
+                        <p class="text-[11px] text-gray-500 mb-4">Tus eventos personales y los de la institución juntos, ordenados por fecha.</p>
+                        <div id="agenda-timeline-list" class="space-y-2"></div>
+                    </div>
+                    <div id="agenda-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <!-- Agenda personal -->
-                        <div class="bg-darkbg border border-borderbg rounded-2xl p-5">
+                        <div id="agenda-card-personal" class="bg-darkbg border border-borderbg rounded-2xl p-5">
                             <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-1 flex items-center gap-2"><i class="fa-solid fa-user-clock"></i> Mi agenda personal</h3>
                             <p class="text-[11px] text-gray-500 mb-4">Eventos privados que solo vos ves. El sistema te avisa cuando se acercan.</p>
                             <form onsubmit="handleAddPersonalEvent(event)" class="space-y-3 mb-4">
@@ -950,7 +928,7 @@
                         </div>
 
                         <!-- Agenda pública -->
-                        <div class="bg-darkbg border border-borderbg rounded-2xl p-5">
+                        <div id="agenda-card-public" class="bg-darkbg border border-borderbg rounded-2xl p-5">
                             <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-1 flex items-center gap-2"><i class="fa-solid fa-bullhorn"></i> Agenda pública institucional</h3>
                             <p class="text-[11px] text-gray-500 mb-4">Eventos para toda la institución. Solo los usuarios de <strong>rango alto</strong> (Administrador/Coordinador) pueden crearlos o modificarlos; todos reciben la notificación.</p>
                             <form id="agenda-public-form" onsubmit="handleAddPublicEvent(event)" class="space-y-3 mb-4 hidden">
@@ -2084,6 +2062,19 @@
 
     </script>
     <script>
+        // Detalle de la llegada tarde: hora de entrada y minutos de atraso (se ve debajo de la etiqueta).
+        function getLateDetail(s) {
+            if (s.status !== 'Llegada Tarde') return '';
+            const scans = Array.isArray(s.attendanceScans) ? s.attendanceScans : [];
+            const entry = scans.find(x => x && x.type === 'Entrada' && (!s.statusDate || x.date === s.statusDate));
+            if (!entry || !entry.time) return '';
+            const toMin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t)); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+            const limit = (document.getElementById('time-limit-on-time') || {}).value || '08:00';
+            const late = toMin(entry.time) - toMin(limit);
+            const hora = String(entry.time).slice(0, 5);
+            return `<div class="text-[10px] text-amber-400 mt-1 whitespace-nowrap">Entró ${escapeHtml(hora)}${late > 0 ? ' · ' + late + ' min tarde' : ''}</div>`;
+        }
+
         function renderStudentsTable() {
             const tbody = document.getElementById('students-table-body');
             const searchTerm = (document.getElementById('search-student')?.value || '').toLowerCase();
@@ -2116,9 +2107,10 @@
                         <td class="p-3.5 text-gray-400 font-mono">${escapeHtml(s.ci)}</td>
                         <td class="p-3.5 text-gray-400">${formatGrade(s.grade)}</td>
                         <td class="p-3.5">
-                            <span class="px-2.5 py-1 rounded-full text-[11px] border font-medium ${statusBadge}">
-                                ${formatAttendanceStatus(s.status)}
+                            <span class="inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] border font-medium ${statusBadge}">
+                                ${s.status === 'Llegada Tarde' ? '<i class="fa-regular fa-clock text-[10px]"></i>' : ''}${formatAttendanceStatus(s.status)}
                             </span>
+                            ${getLateDetail(s)}
                         </td>
                         <td class="p-3.5 text-gray-400">${s.lastRecord}${absences ? `<div class="text-[10px] text-rose-400 mt-0.5">${absences} ausencia${absences > 1 ? 's' : ''} registrada${absences > 1 ? 's' : ''}</div>` : ''}</td>
                         <td class="p-3.5 text-right flex items-center justify-end gap-2">
@@ -2529,6 +2521,37 @@
             runAira(query);
         }
 
+        // Preguntas libres aleatorias: se baraja la lista y no se repite ninguna hasta usarlas todas.
+        const RANDOM_QUESTIONS = [
+            '¿Por qué el cielo es azul?', '¿Cómo se forma un arcoíris?', '¿Cuántos huesos tiene el cuerpo humano?',
+            '¿Por qué hay estaciones en el año?', '¿Qué es la inteligencia artificial, explicada simple?',
+            '¿Cómo funciona un avión para volar?', '¿Qué fue la Revolución Industrial?', '¿Quién fue José Gervasio Artigas?',
+            '¿Qué es un agujero negro?', 'Dame 3 consejos para estudiar mejor', '¿Cómo se calcula el área de un círculo?',
+            '¿Por qué se producen los terremotos?', '¿Qué es el efecto invernadero?', 'Contame un dato curioso del espacio',
+            '¿Cómo funciona internet?', '¿Qué es la energía renovable? Dame ejemplos', '¿Cuál es la diferencia entre clima y tiempo?',
+            'Explicame qué es una célula en 3 líneas', '¿Por qué es importante dormir bien?', '¿Cómo se forma un volcán?',
+            'Explicame el teorema de Pitágoras con un ejemplo', '¿Qué es la democracia?', '¿Cómo funciona una batería?',
+            'Dame una técnica para memorizar rápido', '¿Qué son los números primos?', '¿Por qué flota un barco?',
+            '¿Cómo se hace un buen resumen?', '¿Qué es el reciclaje y por qué importa?', 'Contame cómo se originó el fútbol',
+            '¿Qué es la gravedad?', 'Dame una idea para un proyecto de ciencias', '¿Cómo se escribe una buena redacción?',
+            '¿Qué es un ecosistema?', '¿Cómo funciona un termómetro?', 'Proponeme un acertijo para resolver'
+        ];
+        let randomBag = [];
+        let lastRandomQuestion = '';
+        function askRandomQuestion() {
+            if (!randomBag.length) {
+                randomBag = RANDOM_QUESTIONS.slice();
+                for (let i = randomBag.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [randomBag[i], randomBag[j]] = [randomBag[j], randomBag[i]];
+                }
+                // Que la primera de la nueva tanda no repita la ultima de la anterior.
+                if (randomBag[randomBag.length - 1] === lastRandomQuestion) randomBag.unshift(randomBag.pop());
+            }
+            lastRandomQuestion = randomBag.pop();
+            askPreset(lastRandomQuestion);
+        }
+
         function askPreset(question) {
             appendAiMessage(question, 'user');
             runAira(question);
@@ -2698,12 +2721,17 @@
             for (let intento = 1; intento <= maxIntentos; intento++) {
                 let res;
                 try {
+                    const ctrl = new AbortController();
+                    const killer = setTimeout(function () { ctrl.abort(); }, 75000);
                     res = await fetch(aireBaseUrl() + '/api/chat', {
                         method: 'POST',
+                        signal: ctrl.signal,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: query, history: history, provider: AIRA_PROVIDER || undefined })
                     });
+                    clearTimeout(killer);
                 } catch (e) {
+                    if (e && e.name === 'AbortError') throw new Error('La IA tardó demasiado en responder. Intentá de nuevo en unos segundos.');
                     // Error de red: suele ser el servidor despertando. Reintentamos.
                     ultimoError = 'No se pudo contactar al servidor de IA.';
                     if (intento < maxIntentos) {
@@ -2956,7 +2984,7 @@
         }
 
         // ---------- Firebase ----------
-        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, unsubAgenda = null, adminUsers = [];
+        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, adminUsers = [];
         const syncedJson = new Map();
 
         async function initCloud() {
@@ -2975,14 +3003,7 @@
         async function onCloudAuthChange(user) {
             if (unsubStudents) { unsubStudents(); unsubStudents = null; }
             if (unsubUsers) { unsubUsers(); unsubUsers = null; }
-            if (unsubAgenda) { unsubAgenda(); unsubAgenda = null; }
-            if (!user) {
-                currentUser = null; adminUsers = []; updateAuthHeader();
-                publicEvents = []; savePublicEvents(); renderAgenda(); updateAgendaBadge();
-                document.querySelectorAll('#agenda-popups .ap-card').forEach(function (c) { c.remove(); });
-                if (typeof updateAgendaPopupsUi === 'function') updateAgendaPopupsUi();
-                return;
-            }
+            if (!user) { currentUser = null; adminUsers = []; updateAuthHeader(); return; }
             const { doc, getDoc, setDoc, writeBatch, serverTimestamp } = fb.F;
             const loginId = user.email && user.email.endsWith('@' + USERNAME_DOMAIN) ? user.email.split('@')[0] : user.email;
             let profile = null;
@@ -3008,7 +3029,7 @@
             }
             currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status, cargo: profile.cargo || 'Otro', faceAdv: !!profile.faceAdv };
             closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success'); updateAuthHeader();
-            startStudentsSync(); startPublicAgendaSync(); if (isAdminUser()) startAdminUsersSync();
+            startStudentsSync(); if (isAdminUser()) startAdminUsersSync();
         }
 
         function renderAllStudents() { renderStudentsTable(); updateDashboardMetrics(); populateJustificationSelect(); }
@@ -3312,27 +3333,9 @@
         // ================== AGENDA (eventos personales y públicos) ==================
         let personalEvents = [];
         let publicEvents = JSON.parse(localStorage.getItem('veltrix_agenda_public') || '[]');
-        // Lo "ya avisado / ya visto" se guarda POR USUARIO (antes era por navegador, y en una misma compu
-        // la segunda cuenta heredaba lo que ya había visto la primera y no recibía el aviso).
-        let agendaMetaOwner = null;
-        let agendaReminded = new Set();
-        let agendaSeenPublic = new Set();
-        let agendaSeenInitialized = false;
-        function agendaMetaSuffix() {
-            const id = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.uid || currentUser.email || 'anon') : 'anon';
-            return String(id).toLowerCase();
-        }
-        function loadAgendaMeta() {
-            const suf = agendaMetaSuffix();
-            if (agendaMetaOwner === suf) return false;
-            agendaMetaOwner = suf;
-            try { agendaReminded = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_reminded_' + suf) || '[]')); } catch (e) { agendaReminded = new Set(); }
-            const raw = localStorage.getItem('veltrix_agenda_seen_public_' + suf);
-            try { agendaSeenPublic = new Set(JSON.parse(raw || '[]')); } catch (e) { agendaSeenPublic = new Set(); }
-            agendaSeenInitialized = raw !== null;
-            loadAgendaSnoozed();
-            return true;
-        }
+        let agendaReminded = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_reminded') || '[]'));
+        let agendaSeenPublic = new Set(JSON.parse(localStorage.getItem('veltrix_agenda_seen_public') || 'null') || []);
+        let agendaSeenInitialized = localStorage.getItem('veltrix_agenda_seen_public') !== null;
         let agendaTimer = null;
 
         function personalAgendaKey() {
@@ -3347,16 +3350,14 @@
         }
         function savePublicEvents() { localStorage.setItem('veltrix_agenda_public', JSON.stringify(publicEvents)); }
         function saveAgendaMeta() {
-            const suf = agendaMetaOwner || agendaMetaSuffix();
-            localStorage.setItem('veltrix_agenda_reminded_' + suf, JSON.stringify([...agendaReminded]));
-            localStorage.setItem('veltrix_agenda_seen_public_' + suf, JSON.stringify([...agendaSeenPublic]));
+            localStorage.setItem('veltrix_agenda_reminded', JSON.stringify([...agendaReminded]));
+            localStorage.setItem('veltrix_agenda_seen_public', JSON.stringify([...agendaSeenPublic]));
         }
         function canManagePublicAgenda() {
             return isApprovedUser() && !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'coordinador');
         }
 
         function initAgenda() {
-            loadAgendaMeta();
             loadPersonalEvents();
             // En el primer arranque de este navegador, marcamos los eventos públicos ya existentes como vistos
             // para no inundar de notificaciones; a partir de ahí sí avisamos de los nuevos.
@@ -3365,13 +3366,9 @@
             updateAgendaBadge();
             checkAgendaNotifications();
             if (agendaTimer) clearInterval(agendaTimer);
-            agendaTimer = setInterval(checkAgendaNotifications, 15000); // revisa cada 15 s
+            agendaTimer = setInterval(checkAgendaNotifications, 60000); // revisa cada minuto
         }
         function refreshAgendaForUser() {
-            if (loadAgendaMeta()) { // cambió el usuario: se limpian las tarjetas del anterior
-                document.querySelectorAll('#agenda-popups .ap-card').forEach(function (c) { c.remove(); });
-                if (typeof updateAgendaPopupsUi === 'function') updateAgendaPopupsUi();
-            }
             loadPersonalEvents();
             renderAgenda();
             updateAgendaBadge();
@@ -3440,7 +3437,36 @@
                 const list = [...publicEvents].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
                 gList.innerHTML = list.length ? list.map(ev => eventCardHtml(ev, 'public', canEdit)).join('') : '<p class="text-xs text-gray-500">No hay eventos públicos todavía.</p>';
             }
+            applyAgendaView();
             updateAgendaNotifBanner();
+        }
+
+        // ---- Modo de vista de la agenda (opcional; por defecto "Todo" = como estaba) ----
+        let agendaView = (function () { try { return localStorage.getItem('veltrix_agenda_view') || 'all'; } catch (e) { return 'all'; } })();
+        function setAgendaView(v) {
+            agendaView = v;
+            try { localStorage.setItem('veltrix_agenda_view', v); } catch (e) { /* sin almacenamiento */ }
+            applyAgendaView();
+        }
+        function applyAgendaView() {
+            const g = id => document.getElementById(id);
+            if (!g('agenda-view-chips')) return;
+            if (!['all', 'timeline', 'personal', 'public'].includes(agendaView)) agendaView = 'all';
+            const opts = [['all', 'Todo'], ['timeline', 'Línea de tiempo'], ['personal', 'Mis eventos (' + personalEvents.length + ')'], ['public', 'De la institución (' + publicEvents.length + ')']];
+            g('agenda-view-chips').innerHTML = opts.map(o => `<button onclick="setAgendaView('${o[0]}')" class="text-[11px] font-bold px-3 py-1.5 rounded-full border transition ${agendaView === o[0] ? 'bg-gold-500 text-darkbg border-gold-500' : 'bg-darkbg text-gray-400 border-borderbg hover:text-white'}">${o[1]}</button>`).join('');
+            const timeline = agendaView === 'timeline';
+            g('agenda-grid').classList.toggle('hidden', timeline);
+            g('agenda-grid').classList.toggle('lg:grid-cols-2', agendaView === 'all');
+            g('agenda-card-personal').classList.toggle('hidden', agendaView === 'public');
+            g('agenda-card-public').classList.toggle('hidden', agendaView === 'personal');
+            g('agenda-card-timeline').classList.toggle('hidden', !timeline);
+            if (timeline) {
+                const all = personalEvents.map(e => ({ e, scope: 'personal' })).concat(publicEvents.map(e => ({ e, scope: 'public' })))
+                    .sort((a, b) => new Date(a.e.datetime) - new Date(b.e.datetime));
+                g('agenda-timeline-list').innerHTML = all.length
+                    ? all.map(x => eventCardHtml(x.e, x.scope, x.scope === 'personal' ? !!currentUser : canManagePublicAgenda())).join('')
+                    : '<p class="text-xs text-gray-500">No hay eventos todavía.</p>';
+            }
         }
 
         function makeEventId() { return 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -3477,272 +3503,51 @@
             e.target.reset();
         }
         function addPublicEvent(title, datetime, desc) {
-            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración', createdAt: Date.now() };
-            agendaSeenPublic.add(ev.id); // quien lo crea ya lo "vio": no se avisa a sí mismo
+            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración' };
+            publicEvents.push(ev);
+            savePublicEvents();
+            agendaSeenPublic.add(ev.id); // quien lo crea ya lo "vio"
             saveAgendaMeta();
-            if (CLOUD_ENABLED && fb && currentUser && currentUser.uid) {
-                // Se guarda en la base de datos compartida: a todos los usuarios con la página abierta les llega la tarjeta en vivo.
-                const { doc, setDoc } = fb.F;
-                setDoc(doc(fb.db, 'agenda_public', ev.id), ev).then(function () {
-                    showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
-                }).catch(function (err) {
-                    console.error(err);
-                    showToast('No se pudo publicar el evento para todos. Revisá las reglas de Firestore (agenda_public).', 'error');
-                });
-                // Si el guardado falla, la suscripcion en vivo lo vuelve a quitar de la lista.
-            } else {
-                publicEvents.push(ev);
-                savePublicEvents();
-                renderAgenda(); updateAgendaBadge();
-                showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
-            }
+            renderAgenda(); updateAgendaBadge();
+            showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
             return ev;
-        }
-
-        // Agenda pública compartida (Firestore, colección agenda_public): llega a todos en tiempo real.
-        function startPublicAgendaSync() {
-            if (!(CLOUD_ENABLED && fb)) return;
-            try {
-                const { collection, onSnapshot, doc, setDoc } = fb.F;
-                let first = true;
-                unsubAgenda = onSnapshot(collection(fb.db, 'agenda_public'), function (snap) {
-                    const list = snap.docs.map(function (d) { return d.data(); }).filter(function (e) { return e && e.id && e.datetime; });
-                    if (first) {
-                        first = false;
-                        loadAgendaMeta();
-                        // Primera vez de este usuario con la agenda en la nube: los eventos VIEJOS no se avisan como "nuevos"
-                        // (para no llenar la pantalla), pero los publicados en las últimas 24 h sí.
-                        const initKey = 'veltrix_agenda_cloud_init_' + agendaMetaSuffix();
-                        if (localStorage.getItem(initKey) === null) {
-                            const limite = Date.now() - 24 * 3600 * 1000;
-                            list.forEach(function (e) { if (!e.createdAt || e.createdAt < limite) agendaSeenPublic.add(e.id); });
-                            localStorage.setItem(initKey, '1');
-                            saveAgendaMeta();
-                        }
-                        // Eventos públicos que solo existían en este navegador (de antes): se suben si tenés permiso.
-                        if (canManagePublicAgenda()) {
-                            const cloudIds = new Set(list.map(function (e) { return e.id; }));
-                            publicEvents.filter(function (e) { return e && e.id && !cloudIds.has(e.id); }).forEach(function (e) {
-                                agendaSeenPublic.add(e.id);
-                                setDoc(doc(fb.db, 'agenda_public', e.id), e).catch(function (err) { console.error(err); });
-                            });
-                        }
-                    }
-                    console.log('[Agenda] eventos públicos en la nube: ' + list.length);
-                    publicEvents = list;
-                    savePublicEvents();
-                    renderAgenda();
-                    updateAgendaBadge();
-                    checkAgendaNotifications(); // muestra la tarjeta de los eventos nuevos que este usuario no vio
-                }, function (err) {
-                    console.error(err);
-                    showToast('No se pudo leer la agenda pública. Revisá las reglas de Firestore (agenda_public).', 'error');
-                });
-            } catch (err) { console.error(err); }
         }
 
         function deleteAgendaEvent(scope, id) {
             if (scope === 'public') {
                 if (!canManagePublicAgenda()) { showToast('Solo un usuario de rango alto puede modificar la agenda pública.', 'error'); return; }
                 publicEvents = publicEvents.filter(e => e.id !== id); savePublicEvents();
-                if (CLOUD_ENABLED && fb) {
-                    const { doc, deleteDoc } = fb.F;
-                    deleteDoc(doc(fb.db, 'agenda_public', id)).catch(function (err) {
-                        console.error(err);
-                        showToast('No se pudo eliminar el evento para todos. Revisá las reglas de Firestore (agenda_public).', 'error');
-                    });
-                }
             } else {
                 personalEvents = personalEvents.filter(e => e.id !== id); savePersonalEvents();
             }
-            removeAgendaPopup(id, false); delete agendaSnoozed[id]; saveAgendaSnoozed();
             renderAgenda(); updateAgendaBadge();
             showToast('Evento eliminado.');
         }
 
-        // ===== Avisos de agenda estilo Checker Plus: tarjeta emergente con Posponer / Descartar =====
-        let agendaSnoozed = {};
-        function loadAgendaSnoozed() {
-            try { agendaSnoozed = JSON.parse(localStorage.getItem('veltrix_agenda_snoozed_' + agendaMetaSuffix()) || '{}') || {}; } catch (e) { agendaSnoozed = {}; }
-        }
-        function saveAgendaSnoozed() { try { localStorage.setItem('veltrix_agenda_snoozed_' + (agendaMetaOwner || agendaMetaSuffix()), JSON.stringify(agendaSnoozed)); } catch (e) {} }
-
-        function allAgendaEvents() {
-            return [
-                ...personalEvents.map(e => ({ ...e, scope: 'personal' })),
-                ...publicEvents.map(e => ({ ...e, scope: 'public' }))
-            ];
-        }
-        function findAgendaEvent(id) { return allAgendaEvents().find(e => e.id === id) || null; }
-
-        function agendaWhenText(ev) {
-            const diff = new Date(ev.datetime).getTime() - Date.now();
-            if (Math.abs(diff) <= 60000) return { text: 'Empieza ahora', now: true };
-            if (diff > 0) {
-                const min = Math.round(diff / 60000);
-                if (min < 60) return { text: 'Empieza en ' + min + ' min', now: false };
-                const h = Math.floor(min / 60), m = min % 60;
-                return { text: 'Empieza en ' + h + ' h' + (m ? ' ' + m + ' min' : ''), now: false };
-            }
-            const ago = Math.round(-diff / 60000);
-            if (ago < 60) return { text: 'Empezó hace ' + ago + ' min', now: true };
-            return { text: 'Empezó hace ' + Math.floor(ago / 60) + ' h', now: true };
-        }
-
-        function agendaChime() {
-            try {
-                const AC = window.AudioContext || window.webkitAudioContext;
-                if (!AC) return;
-                const ctx = new AC();
-                [880, 1175].forEach(function (freq, i) {
-                    const o = ctx.createOscillator(), g = ctx.createGain();
-                    o.type = 'sine'; o.frequency.value = freq;
-                    const t0 = ctx.currentTime + i * 0.16;
-                    g.gain.setValueAtTime(0.0001, t0);
-                    g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
-                    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
-                    o.connect(g); g.connect(ctx.destination);
-                    o.start(t0); o.stop(t0 + 0.4);
-                });
-                setTimeout(function () { try { ctx.close(); } catch (e) {} }, 900);
-            } catch (e) { /* el navegador puede bloquear el audio hasta que haya interaccion */ }
-        }
-
-        function updateAgendaPopupsUi() {
-            const box = document.getElementById('agenda-popups');
-            if (!box) return;
-            let all = box.querySelector('.ap-all');
-            const cards = box.querySelectorAll('.ap-card').length;
-            if (cards > 1 && !all) {
-                all = document.createElement('button');
-                all.className = 'ap-all';
-                all.textContent = 'Descartar todo';
-                all.onclick = dismissAllAgendaPopups;
-                box.insertBefore(all, box.firstChild); // column-reverse: queda arriba del todo
-            } else if (cards <= 1 && all) {
-                all.remove();
-            }
-        }
-        function refreshAgendaPopupTimes() {
-            document.querySelectorAll('#agenda-popups .ap-card').forEach(function (card) {
-                const ev = findAgendaEvent(card.dataset.id);
-                if (!ev) { card.remove(); return; }
-                const w = agendaWhenText(ev);
-                const el = card.querySelector('.ap-when');
-                if (el) { el.textContent = w.text; el.classList.toggle('ap-now', w.now); }
-            });
-            updateAgendaPopupsUi();
-        }
-        function removeAgendaPopup(id, animated) {
-            const box = document.getElementById('agenda-popups');
-            if (!box) return;
-            box.querySelectorAll('.ap-card').forEach(function (card) {
-                if (card.dataset.id !== id) return;
-                if (animated) { card.classList.add('ap-out'); setTimeout(function () { card.remove(); updateAgendaPopupsUi(); }, 180); }
-                else { card.remove(); }
-            });
-            updateAgendaPopupsUi();
-        }
-        function dismissAgendaPopup(id) {
-            delete agendaSnoozed[id]; saveAgendaSnoozed();
-            removeAgendaPopup(id, true);
-        }
-        function dismissAllAgendaPopups() {
-            document.querySelectorAll('#agenda-popups .ap-card').forEach(function (c) { delete agendaSnoozed[c.dataset.id]; c.remove(); });
-            saveAgendaSnoozed(); updateAgendaPopupsUi();
-        }
-        function snoozeAgendaPopup(id, minutes) {
-            agendaSnoozed[id] = Date.now() + minutes * 60000; saveAgendaSnoozed();
-            removeAgendaPopup(id, true);
-            showToast('Pospuesto ' + (minutes >= 60 ? (minutes / 60) + ' h' : minutes + ' min') + '.', 'info');
-        }
-        function openAgendaFromPopup(id) { dismissAgendaPopup(id); switchTab('agenda'); }
-
-        // kind: 'soon' | 'now' | 'new' | 'snoozed'
-        function showAgendaPopup(ev, kind) {
-            const box = document.getElementById('agenda-popups');
-            if (!box) return;
-            removeAgendaPopup(ev.id, false); // una sola tarjeta por evento
-            const isPublic = ev.scope === 'public';
-            const head = kind === 'new' ? 'Nuevo evento público' : (isPublic ? 'Evento público' : 'Recordatorio de tu agenda');
-            const w = agendaWhenText(ev);
-            const card = document.createElement('div');
-            card.className = 'ap-card' + (isPublic ? ' ap-public' : '');
-            card.dataset.id = ev.id;
-            card.innerHTML =
-                '<button class="ap-x" title="Descartar" aria-label="Descartar">✕</button>' +
-                '<div class="ap-head"><i class="fa-solid ' + (kind === 'new' ? 'fa-bullhorn' : 'fa-calendar-check') + '"></i> ' + escapeHtml(head) + '</div>' +
-                '<div class="ap-title">' + escapeHtml(ev.title) + '</div>' +
-                '<div class="ap-time">' + escapeHtml(formatEventDate(ev.datetime)) + '</div>' +
-                '<div class="ap-when' + (w.now ? ' ap-now' : '') + '">' + escapeHtml(w.text) + '</div>' +
-                (ev.desc ? '<div class="ap-desc">' + escapeHtml(ev.desc) + '</div>' : '') +
-                '<div class="ap-actions">' +
-                    '<div class="ap-snooze-wrap"><button class="ap-btn ap-snooze-btn"><i class="fa-regular fa-clock"></i> Posponer ▾</button>' +
-                    '<div class="ap-snooze-menu"><button data-m="5">5 minutos</button><button data-m="15">15 minutos</button><button data-m="60">1 hora</button></div></div>' +
-                    '<button class="ap-btn ap-primary ap-dismiss">Descartar</button>' +
-                    '<button class="ap-btn ap-open-agenda" style="margin-left:auto">Ver agenda</button>' +
-                '</div>';
-            const menu = card.querySelector('.ap-snooze-menu');
-            card.querySelector('.ap-x').onclick = function () { dismissAgendaPopup(ev.id); };
-            card.querySelector('.ap-dismiss').onclick = function () { dismissAgendaPopup(ev.id); };
-            card.querySelector('.ap-open-agenda').onclick = function () { openAgendaFromPopup(ev.id); };
-            card.querySelector('.ap-snooze-btn').onclick = function (e) { e.stopPropagation(); menu.classList.toggle('ap-open'); };
-            menu.querySelectorAll('button').forEach(function (b) { b.onclick = function () { snoozeAgendaPopup(ev.id, Number(b.dataset.m)); }; });
-            box.appendChild(card);
-            updateAgendaPopupsUi();
-            agendaChime();
-            // Si la pestaña no se ve, tambien un aviso del sistema que queda hasta que lo cierres.
-            if (document.hidden) {
-                const title = kind === 'new' ? '📢 Nuevo evento público: ' + ev.title : '⏰ ' + ev.title;
-                sendSystemNotification(title, w.text + ' — ' + formatEventDate(ev.datetime), 'veltrix-ev-' + ev.id, true);
-            }
-        }
-        document.addEventListener('click', function () {
-            document.querySelectorAll('.ap-snooze-menu.ap-open').forEach(function (m) { m.classList.remove('ap-open'); });
-        });
-
         function checkAgendaNotifications() {
-            if (CLOUD_ENABLED && !currentUser) return; // sin sesión no se muestran avisos de la agenda
             const now = Date.now();
             // Avisar de nuevos eventos públicos (futuros) que este navegador aún no vio.
             publicEvents.forEach(ev => {
                 if (!agendaSeenPublic.has(ev.id)) {
                     agendaSeenPublic.add(ev.id);
                     if (new Date(ev.datetime).getTime() >= now) {
-                        showAgendaPopup({ ...ev, scope: 'public' }, 'new');
+                        showToast('📢 Nuevo evento público: ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
+                        sendSystemNotification('📢 Nuevo evento público', ev.title + ' — ' + formatEventDate(ev.datetime));
                     }
                 }
             });
-            // Recordatorios: aviso suave a las 24 h, tarjeta a los 10 min y al empezar.
-            allAgendaEvents().forEach(ev => {
+            // Recordatorios de eventos próximos (dentro de 24 h).
+            upcomingEvents().forEach(ev => {
                 const diff = new Date(ev.datetime).getTime() - now;
-                if (isNaN(diff)) return;
-                if (diff > 10 * 60000 && diff <= 24 * 3600 * 1000 && !agendaReminded.has(ev.id) && !agendaReminded.has(ev.id + '|24h')) {
-                    agendaReminded.add(ev.id + '|24h');
+                if (diff > 0 && diff <= 24 * 3600 * 1000 && !agendaReminded.has(ev.id)) {
+                    agendaReminded.add(ev.id);
                     const quien = ev.scope === 'public' ? 'evento público' : 'tu evento';
                     showToast('⏰ Recordatorio de ' + quien + ': ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
-                }
-                if (diff <= 10 * 60000 && diff > 0 && !agendaReminded.has(ev.id + '|10m')) {
-                    agendaReminded.add(ev.id + '|10m'); agendaReminded.add(ev.id + '|24h');
-                    showAgendaPopup(ev, 'soon');
-                }
-                if (diff <= 0 && diff > -5 * 60000 && !agendaReminded.has(ev.id + '|0')) {
-                    agendaReminded.add(ev.id + '|0'); agendaReminded.add(ev.id + '|10m'); agendaReminded.add(ev.id + '|24h');
-                    showAgendaPopup(ev, 'now');
+                    sendSystemNotification('⏰ Recordatorio: ' + ev.title, 'Se acerca ' + quien + ' — ' + formatEventDate(ev.datetime));
                 }
             });
-            // Eventos pospuestos que ya les toca volver a avisar.
-            Object.keys(agendaSnoozed).forEach(id => {
-                if (agendaSnoozed[id] <= now) {
-                    delete agendaSnoozed[id];
-                    const ev = findAgendaEvent(id);
-                    if (ev) showAgendaPopup(ev, 'snoozed');
-                }
-            });
-            saveAgendaSnoozed();
             saveAgendaMeta();
             updateAgendaBadge();
-            refreshAgendaPopupTimes();
         }
 
         // ----- Notificaciones del navegador (recordatorios de agenda) -----
@@ -3750,11 +3555,10 @@
             if (!('Notification' in window)) return 'unsupported';
             return Notification.permission; // 'default' | 'granted' | 'denied'
         }
-        function sendSystemNotification(title, body, tag, sticky) {
+        function sendSystemNotification(title, body) {
             try {
                 if (('Notification' in window) && Notification.permission === 'granted') {
-                    const n = new Notification(title, { body: body, tag: tag || 'veltrix-agenda', requireInteraction: !!sticky, icon: '' });
-                    n.onclick = function () { try { window.focus(); switchTab('agenda'); n.close(); } catch (e) {} };
+                    new Notification(title, { body: body, tag: 'veltrix-agenda', icon: '' });
                 }
             } catch (e) { /* algunos navegadores restringen; el aviso en pantalla ya se mostró */ }
         }
