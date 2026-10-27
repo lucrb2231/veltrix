@@ -553,7 +553,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-300">
                         <label class="flex items-center gap-2"><input type="checkbox" id="fa-enabled"> Activar verificación con IA 2</label>
                         <label class="flex items-center gap-2"><input type="checkbox" id="fa-live"> Anti-foto (detectar persona real)</label>
-                        <label class="flex items-center gap-2 md:col-span-2"><input type="checkbox" id="fa-server"> Procesar la IA 2 en el servidor (obligatorio: no corre en el navegador)</label>
+                        <label class="flex items-center gap-2 md:col-span-2"><input type="checkbox" id="fa-server" checked disabled> Procesar la IA 2 en el servidor (obligatorio: no corre en el navegador)</label>
                         <label>Modo<select id="fa-mode" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"><option value="max">Máxima precisión (toda duda se confirma)</option><option value="balanced">Equilibrado (la IA 2 resuelve dudas claras)</option></select></label>
                         <div class="grid grid-cols-2 gap-2"><label>Similitud mín.<input type="number" step="0.01" id="fa-sim" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"></label><label>Margen mín.<input type="number" step="0.01" id="fa-gap" class="w-full mt-1 bg-darkbg border border-borderbg rounded-xl px-3 py-2 text-white"></label></div>
                     </div>
@@ -835,6 +835,27 @@
                                 </span>
                                 
                             </div>
+                    </div>
+
+                    <!-- Sensor de tokens: saldo total estimado (discreto, sin nombres ni avisos de cambio) -->
+                    <div id="ai-quota-panel" class="mb-3 bg-darkbg/80 border border-borderbg rounded-xl px-3 py-2">
+                        <div class="flex items-center justify-between gap-2 text-[10px] text-gray-400">
+                            <span class="flex items-center gap-1.5 min-w-0">
+                                <i class="fa-solid fa-gauge-high text-gold-500"></i>
+                                <span id="ai-quota-name" class="font-semibold text-gray-300 truncate">Tokens disponibles</span>
+                                <span id="ai-quota-badge" class="hidden"></span>
+                            </span>
+                            <span id="ai-quota-text" class="font-mono text-[10px] text-gray-300 whitespace-nowrap">—</span>
+                        </div>
+                        <div class="mt-1.5 h-1.5 w-full bg-black/50 rounded-full overflow-hidden">
+                            <div id="ai-quota-bar" class="h-full bg-emerald-500 transition-all duration-500" style="width:100%"></div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 mt-1.5">
+                            <span id="ai-quota-hint" class="text-[9px] text-gray-500 truncate">Saldo estimado disponible.</span>
+                            <button type="button" onclick="refreshQuotaSensor(true)" title="Actualizar saldo de tokens" class="text-[9px] text-gray-400 hover:text-gold-400 flex items-center gap-1 flex-shrink-0">
+                                <i class="fa-solid fa-rotate"></i> Actualizar
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Chat Box -->
@@ -1185,6 +1206,8 @@
         const FACE_ADV_DEFAULT = { enabled: true, mode: 'max', liveness: true, minSim: 0.55, minGap: 0.04, server: true };
         let FACE_ADV = Object.assign({}, FACE_ADV_DEFAULT, (function () { try { return JSON.parse(localStorage.getItem('veltrix_face_adv') || '{}'); } catch (e) { return {}; } })());
         function applyFaceAdv() {
+            // La IA 2 (Human) no se carga en el navegador: siempre corre en el servidor.
+            FACE_ADV.server = true;
             if (FACE_ADV.enabled && FACE_ADV.mode === 'max') { FACE_CFG.MATCH_THRESHOLD = 0.40; FACE_CFG.MATCH_MARGIN = 0.12; }
             else { FACE_CFG.MATCH_THRESHOLD = 0.42; FACE_CFG.MATCH_MARGIN = 0.10; }
         }
@@ -1236,10 +1259,13 @@
             async enrollShot(videoId) {
                 if (!FACE_ADV.enabled) return;
                 if (FACE_ADV.server) {
-                    try {
-                        const r = await this.serverCall('/api/face/embed', { images: await this.frames(videoId, 3), liveness: !!FACE_ADV.liveness });
-                        if (r.embedding) { (this.pending = this.pending || []).push(r.embedding); return; }
-                    } catch (e) { console.warn('IA 2 servidor (registro):', e); }
+                    for (let intento = 0; intento < 2; intento++) {
+                        try {
+                            const r = await this.serverCall('/api/face/embed', { images: await this.frames(videoId, 3), liveness: !!FACE_ADV.liveness }, 60000);
+                            if (r.embedding) { (this.pending = this.pending || []).push(r.embedding); return; }
+                        } catch (e) { console.warn('IA 2 servidor (registro, intento ' + (intento + 1) + '):', e); }
+                        await wait(400);
+                    }
                 }
                 try {
                     const s = await this.embed(videoId, 3);
@@ -1266,22 +1292,38 @@
                 const got = p ? await p : null;
                 return got && got.length ? got : this.frames(videoId, n);
             },
-            async serverCall(path, body) {
-                const res = await fetch(aireBaseUrl() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            async serverCall(path, body, timeoutMs) {
+                const ctrl = new AbortController();
+                const killer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 45000);
+                let res;
+                try {
+                    res = await fetch(aireBaseUrl() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+                } catch (e) {
+                    if (e && e.name === 'AbortError') throw new Error('La IA 2 del servidor tardó demasiado en responder.');
+                    throw e;
+                } finally { clearTimeout(killer); }
                 let data = null; try { data = await res.json(); } catch (e) {}
                 if (!res.ok || !data) throw new Error((data && data.error) || ('Servidor ' + res.status));
                 return data;
             },
             async reviewServer(res, scan, videoId) {
-                const cands = (res.candidates || []).filter(c => Array.isArray(c.faceDescriptor2));
+                // Se envian TODOS los alumnos con huella de IA 2 (no solo los 2 de la IA 1):
+                // asi la segunda IA puede rescatar casos que la primera dejo en duda.
+                const cands = students
+                    .filter(c => Array.isArray(c.faceDescriptor2) && c.faceDescriptor2.length && c.status !== 'Expulsado')
+                    .slice(0, 200);
+                if (!cands.length) {
+                    if (!this.noSecond) { this.noSecond = true; showToast('Ningún alumno tiene huella de la IA 2. Re-registrá los rostros para activar la verificación doble.'); }
+                    return null;
+                }
                 try {
                     const r = await this.serverCall('/api/face/verify', {
                         images: await this.takeFrames(videoId, 3), liveness: !!FACE_ADV.liveness, minSim: FACE_ADV.minSim, minGap: FACE_ADV.minGap,
-                        candidates: cands.map(c => ({ id: c.id, d2: c.faceDescriptor2 }))
-                    });
+                        candidates: cands.map(c => ({ id: String(c.id), d2: c.faceDescriptor2 }))
+                    }, 60000);
                     if (!r.faceOk) return { student: null, reason: 'La IA del servidor no pudo ver un rostro único y claro. Repetí el escaneo de frente y con buena luz.' };
                     if (!r.liveOk) return { student: null, reason: 'No se pudo confirmar que sea una persona real (posible foto o pantalla). No se registró asistencia.' };
-                    const ranked2 = r.ranked.map(x => ({ st: students.find(s => s.id === x.id), sim: x.sim })).filter(x => x.st);
+                    const ranked2 = (r.ranked || []).map(x => ({ st: students.find(s => String(s.id) === String(x.id)), sim: x.sim })).filter(x => x.st);
                     return await this.decide(res, scan, ranked2, r.minSim, r.minGap);
                 } catch (e) { console.warn('IA 2 servidor no disponible, se usa la local:', e); return null; }
             },
@@ -1296,7 +1338,17 @@
                 const doubtful = res.ambiguous && res.candidates && res.candidates.length;
                 if (!res.student && !doubtful) return res;
                 if (box) box.innerHTML = '<div class="py-6 text-center"><i class="fa-solid fa-spinner fa-spin text-gold-400 text-2xl"></i><p class="text-xs text-gray-400 mt-3">Verificando con la segunda IA…</p></div>';
-                if (FACE_ADV.server) { const rs = await this.reviewServer(res, scan, videoId); if (rs) return rs; }
+                if (FACE_ADV.server) {
+                    const rs = await this.reviewServer(res, scan, videoId);
+                    if (rs) return rs;
+                    // La IA 2 no respondio (servidor caido o sin huellas). En modo
+                    // "maxima precision" NO se acepta la IA 1 sola: se confirma.
+                    if (FACE_ADV.mode === 'max') {
+                        const cands = (res.candidates || []).concat(res.student ? [res.student] : []).filter(Boolean);
+                        if (cands.length) return this.askPlanB(res, scan, cands, 'La IA 2 no está disponible. Confirmá la identidad antes de registrar.');
+                        return { student: null, reason: 'La IA 2 no está disponible y no hay candidatos para confirmar la identidad. No se registró asistencia.' };
+                    }
+                }
                 let s = null;
                 try { s = await this.embed(videoId, 3); }
                 catch (e) {
@@ -1317,9 +1369,9 @@
                     const mine = ranked2.find(r => r.st === res.student);
                     if (!mine) { showToast('Identificado por IA 1. Re-registrá el rostro para activar la IA 2.'); return res; }
                     if (top.st === res.student && mine.sim >= minSim && gap >= minGap) { res.note = tag; return res; }
-                    return this.askPlanB(res, scan, [res.student, top && top.st !== res.student ? top.st : null], 'Las dos IA no coinciden del todo' + tag + '.');
+                    return this.askPlanB(res, scan, [res.student].concat(ranked2.slice(0, 3).map(r => r.st)), 'Las dos IA no coinciden del todo' + tag + '.');
                 }
-                const cands = res.candidates;
+                const cands = (res.candidates || []).concat(ranked2.slice(0, 3).map(r => r.st));
                 if (FACE_ADV.mode !== 'max' && top && cands.includes(top.st) && top.sim >= minSim + 0.10 && gap >= minGap * 1.5) {
                     showToast('Duda resuelta por la IA 2' + tag + '.');
                     return Object.assign({}, res, { student: top.st, ambiguous: false });
@@ -1371,9 +1423,9 @@
             const locked = !canEditFaceAdv();
             ['fa-enabled', 'fa-live', 'fa-server', 'fa-mode', 'fa-sim', 'fa-gap', 'fa-save', 'fa-test'].forEach(id => {
                 const el = document.getElementById(id); if (!el) return;
-                el.disabled = locked;
-                el.classList.toggle('opacity-50', locked);
-                el.classList.toggle('cursor-not-allowed', locked);
+                el.disabled = locked || id === 'fa-server'; // la IA 2 solo corre en el servidor
+                el.classList.toggle('opacity-50', locked || id === 'fa-server');
+                el.classList.toggle('cursor-not-allowed', locked || id === 'fa-server');
             });
             const note = document.getElementById('fa-lock-note'); if (note) note.classList.toggle('hidden', !locked);
             const card = document.getElementById('face-adv-card'); if (card) card.classList.toggle('hidden', locked); // solo el Administrador ve el panel
@@ -1381,13 +1433,13 @@
         function loadFaceAdvUi() {
             const g = id => document.getElementById(id); if (!g('fa-enabled')) return;
             g('fa-enabled').checked = !!FACE_ADV.enabled; g('fa-mode').value = FACE_ADV.mode;
-            g('fa-live').checked = !!FACE_ADV.liveness; g('fa-server').checked = !!FACE_ADV.server; g('fa-sim').value = FACE_ADV.minSim; g('fa-gap').value = FACE_ADV.minGap;
+            g('fa-live').checked = !!FACE_ADV.liveness; g('fa-server').checked = true; g('fa-sim').value = FACE_ADV.minSim; g('fa-gap').value = FACE_ADV.minGap;
             applyFaceAdvLock();
         }
         function saveFaceAdvUi() {
             if (!requireFaceAdvAdmin()) return;
             const g = id => document.getElementById(id);
-            FACE_ADV = { enabled: g('fa-enabled').checked, mode: g('fa-mode').value, liveness: g('fa-live').checked, server: g('fa-server').checked,
+            FACE_ADV = { enabled: g('fa-enabled').checked, mode: g('fa-mode').value, liveness: g('fa-live').checked, server: true,
                 minSim: Math.min(0.95, Math.max(0.2, parseFloat(g('fa-sim').value) || 0.55)),
                 minGap: Math.min(0.5, Math.max(0, parseFloat(g('fa-gap').value) || 0.04)) };
             localStorage.setItem('veltrix_face_adv', JSON.stringify(FACE_ADV));
@@ -1401,7 +1453,10 @@
                 if (document.getElementById('fa-server').checked) {
                     const res = await fetch(aireBaseUrl() + '/api/face/status?warm=1', { cache: 'no-store' });
                     const d = await res.json();
-                    if (d.available && d.loaded) { el.textContent = '✔ IA 2 del servidor lista.'; el.className = 'text-[11px] text-emerald-400'; return; }
+                    if (d.available && d.loaded) {
+                        const extra = (d.backend || '—') + (d.livenessReady ? ', anti-foto activo' : ', SIN modelo anti-foto');
+                        el.textContent = '✔ IA 2 del servidor lista (' + extra + ').'; el.className = 'text-[11px] text-emerald-400'; return;
+                    }
                     el.textContent = '✖ Servidor sin IA facial: ' + String(d.error || 'no cargó el modelo').split('\n')[0]; el.className = 'text-[11px] text-rose-400'; return;
                 }
                 await FaceGuard.load(); el.textContent = '✔ IA 2 (navegador) lista.'; el.className = 'text-[11px] text-emerald-400';
@@ -1873,6 +1928,7 @@
             try {
                 const samples = await captureEnrollmentSamples('reg-video');
                 const centroid = normalizeDescriptor(meanVector(samples.map(s => s.d)));
+                const d2 = FaceGuard.takePending();
 
                 // Compara contra los demás alumnos (excluyendo al que se está actualizando).
                 let closest = null;
@@ -1898,7 +1954,8 @@
                     studentWithSameCi.category = category;
                     studentWithSameCi.faceSamples = samples;
                     studentWithSameCi.faceDescriptor = centroid;
-                    { const d2 = FaceGuard.takePending(); if (d2) studentWithSameCi.faceDescriptor2 = d2; }
+                    if (d2) studentWithSameCi.faceDescriptor2 = d2;
+                    else delete studentWithSameCi.faceDescriptor2;
                     delete studentWithSameCi.signature;
                     studentWithSameCi.biometricVersion = 'face-api-128-v2';
                     successMsg = `Biometría de ${name} actualizada correctamente.`;
@@ -1911,7 +1968,7 @@
                         category,
                         faceSamples: samples,      // 3 referencias: [{label, d:[128]}]
                         faceDescriptor: centroid,  // promedio (compatibilidad)
-                        faceDescriptor2: FaceGuard.takePending(), // huella de la IA 2
+                        faceDescriptor2: d2, // huella de la IA 2
                         biometricVersion: 'face-api-128-v2',
                         status: 'Ausente',
                         statusDate: getLocalDateKey(),
@@ -1926,6 +1983,9 @@
                     else showToast(`${name} quedó guardado solo en este navegador: falló el guardado en la base de datos. Se reintentará automáticamente.`, "error");
                 } else {
                     showToast(successMsg, "success");
+                }
+                if (FACE_ADV.enabled && !d2) {
+                    setTimeout(() => showToast('Aviso: el rostro quedó registrado con la IA 1, pero la IA 2 no generó su huella. Probá "Reiniciar cámara" y volvé a registrarlo para tener verificación doble.', 'error'), 600);
                 }
 
                 document.getElementById('student-reg-form').reset();
@@ -1963,6 +2023,7 @@
                 FaceGuard.prefetchFrames('attend-video');   // la IA 2 recibe sus fotos mientras la IA 1 analiza
                 scan = await captureFaceScan('attend-video', FACE_SCAN_FRAMES, true);
             } catch (error) {
+                FaceGuard.prefetched = null;
                 scanBox.innerHTML = `
                     <div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-500/30">
                         <i class="fa-solid fa-triangle-exclamation"></i>
@@ -2628,6 +2689,9 @@
                 const msg = (err && err.message) ? err.message : 'error desconocido';
                 if (msg === 'El servidor se esta iniciando.' || msg === 'No se pudo contactar al servidor de IA.') {
                     appendAiMessage('⚠️ No pude conectar con la IA todavía. El servidor suele “dormirse” tras un rato sin uso y puede tardar en despertar. Esperá unos segundos y volvé a enviar tu pregunta.', 'ai');
+                } else if (msg === 'La IA no tiene saldo disponible en este momento.') {
+                    setBasicMode();
+                    appendAiMessage('⚠️ La IA no está disponible en este momento. Podés seguir usando las respuestas básicas del sistema.', 'ai');
                 } else {
                     appendAiMessage('⚠️ La IA respondió con un error: ' + escapeHtml(msg) + '. Revisá la configuración del servidor (clave o modelo) y volvé a intentar.', 'ai');
                 }
@@ -2731,11 +2795,123 @@
             if (txt) txt.textContent = 'Modo basico';
         }
 
+        /* ==================================================================
+         *  SENSOR DE TOKENS (DISCRETO)
+         *  Lee /api/ai/quota y muestra solo el saldo TOTAL de las IA
+         *  configuradas. No muestra nombres, roles ni avisos de cambio:
+         *  el cambio automatico ocurre sin que se note en la interfaz.
+         * ================================================================== */
+        let quotaRefreshTimer = null;
+
+        function formatTokens(n) {
+            if (n == null || !isFinite(n)) return '—';
+            const v = Math.max(0, Math.round(n));
+            if (v >= 1000000) return (v / 1000000).toFixed(v >= 10000000 ? 0 : 1).replace('.', ',') + ' M';
+            if (v >= 1000) return (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace('.', ',') + ' k';
+            return String(v);
+        }
+
+        function renderQuotaSensor(snap) {
+            if (!snap || !Array.isArray(snap.providers)) return;
+            window.__airaQuota = snap;
+
+            const nameEl = document.getElementById('ai-quota-name');
+            const textEl = document.getElementById('ai-quota-text');
+            const barEl = document.getElementById('ai-quota-bar');
+            const hintEl = document.getElementById('ai-quota-hint');
+            const badgeEl = document.getElementById('ai-quota-badge');
+            if (!nameEl || !textEl || !barEl) return;
+
+            const configured = snap.providers.filter(function (p) { return p.configured; });
+            if (badgeEl) badgeEl.classList.add('hidden');
+
+            if (!configured.length) {
+                nameEl.textContent = 'Tokens disponibles';
+                textEl.textContent = '—';
+                barEl.style.width = '0%';
+                barEl.className = 'h-full bg-rose-500 transition-all duration-500';
+                if (hintEl) hintEl.textContent = 'Cargá una clave de IA en el servidor para activar el sensor.';
+                setBasicMode();
+                return;
+            }
+
+            // Saldo TOTAL de las IA configuradas: al cambiar de proveedor el
+            // numero no salta, asi el cambio pasa desapercibido.
+            let remaining = 0, limit = 0, hasRemaining = false, hasLimit = false;
+            configured.forEach(function (p) {
+                if (p.remaining != null && isFinite(p.remaining)) { remaining += Number(p.remaining); hasRemaining = true; }
+                if (p.limit != null && isFinite(p.limit) && p.limit > 0) { limit += Number(p.limit); hasLimit = true; }
+            });
+
+            nameEl.textContent = 'Tokens disponibles';
+
+            if (!hasRemaining) {
+                textEl.textContent = 'saldo no informado';
+                textEl.className = 'font-mono text-[10px] text-gray-400 whitespace-nowrap';
+                barEl.style.width = '100%';
+                barEl.className = 'h-full bg-sky-500/40 transition-all duration-500';
+                if (hintEl) hintEl.textContent = 'La IA no informa su saldo; se controla el consumo localmente.';
+            } else {
+                const pct = hasLimit ? Math.max(0, Math.min(100, Math.round((remaining / limit) * 100))) : null;
+                if (remaining <= 0) {
+                    textEl.textContent = 'sin tokens';
+                    textEl.className = 'font-mono text-[10px] text-rose-400 whitespace-nowrap';
+                    barEl.style.width = '0%';
+                    barEl.className = 'h-full bg-rose-500 transition-all duration-500';
+                } else {
+                    textEl.textContent = formatTokens(remaining) + ' tokens';
+                    textEl.className = 'font-mono text-[10px] whitespace-nowrap ' + (pct == null || pct > 40 ? 'text-emerald-400' : pct > 15 ? 'text-amber-400' : 'text-rose-400');
+                    barEl.style.width = (pct == null ? 100 : Math.max(2, pct)) + '%';
+                    barEl.className = 'h-full transition-all duration-500 ' + (pct == null ? 'bg-sky-500/40' : pct > 40 ? 'bg-emerald-500' : pct > 15 ? 'bg-amber-500' : 'bg-rose-500');
+                }
+                if (hintEl) {
+                    hintEl.textContent = remaining <= 0
+                        ? 'Saldo estimado agotado. El servicio puede responder en modo básico.'
+                        : (hasLimit
+                            ? 'Quedan ' + formatTokens(remaining) + ' de ' + formatTokens(limit) + ' tokens (' + pct + '%).'
+                            : 'Quedan ' + formatTokens(remaining) + ' tokens estimados.');
+                }
+            }
+
+            // El chip solo dice si hay IA disponible, sin nombrar proveedores.
+            const allExhausted = configured.every(function (p) { return p.exhausted; });
+            if (allExhausted) setBasicMode(); else updateAiStatus();
+        }
+
+        async function refreshQuotaSensor(manual) {
+            const hintEl = document.getElementById('ai-quota-hint');
+            if (manual && hintEl) hintEl.textContent = 'Leyendo el saldo de tokens…';
+            try {
+                const prov = AIRA_PROVIDER ? '&provider=' + encodeURIComponent(AIRA_PROVIDER) : '';
+                // compact=1: el servidor devuelve solo numeros, sin nombres de IA
+                // ni datos del cambio automatico.
+                const res = await fetch(aireBaseUrl() + '/api/ai/quota?compact=1&refresh=' + (manual ? '1' : '0') + prov, { cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error((data && data.error) || ('Servidor ' + res.status));
+                renderQuotaSensor(data);
+            } catch (e) {
+                if (hintEl) {
+                    hintEl.textContent = 'No se pudo leer el saldo de tokens (servidor despierto o sin conexión).';
+                }
+            }
+        }
+
+        function startQuotaSensor() {
+            refreshQuotaSensor(false);
+            if (quotaRefreshTimer) clearInterval(quotaRefreshTimer);
+            quotaRefreshTimer = setInterval(function () {
+                if (!document.hidden) refreshQuotaSensor(false);
+            }, 60000);
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startQuotaSensor);
+        else setTimeout(startQuotaSensor, 0);
+
         // Revisa si el servidor de IA esta disponible.
         async function loadAiConfig() {
             updateAiStatus();
             try {
-                const res = await fetch(aireBaseUrl() + '/api/health', { cache: 'no-store' });
+                const prov = AIRA_PROVIDER ? '?provider=' + encodeURIComponent(AIRA_PROVIDER) : '';
+                const res = await fetch(aireBaseUrl() + '/api/health' + prov, { cache: 'no-store' });
                 const data = await res.json();
                 if (!(data && (data.geminiConfigurado || data.openaiConfigurado || data.openrouterConfigurado))) {
                     setBasicMode();
@@ -2795,7 +2971,11 @@
                 }
                 let data = null;
                 try { data = await res.json(); } catch (e) {}
+                if (data && data.quota) renderQuotaSensor(data.quota);
                 if (!res.ok) {
+                    // Si se agotó el saldo, no se nombran proveedores: el
+                    // cambio de IA tiene que pasar desapercibido.
+                    if (data && data.sinTokens) throw new Error('La IA no tiene saldo disponible en este momento.');
                     throw new Error((data && data.error) ? data.error : ('El servidor respondio ' + res.status));
                 }
                 const text = (data && data.text) ? String(data.text).trim() : '';
