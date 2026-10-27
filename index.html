@@ -1004,6 +1004,12 @@
                             <p class="text-xs text-gray-400 mt-2">Soporte inteligente y diseño visual.</p>
                         </div>
                     </div>
+
+                    <div class="mt-6 text-center">
+                        <a href="https://lucrb2231.github.io/Code-Nexus/#contacto" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-darkbg font-bold text-xs px-5 py-3 rounded-xl transition">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Conoce más sobre nosotros...
+                        </a>
+                    </div>
                 </div>
             </section>
 
@@ -1153,8 +1159,8 @@
         const FACE_MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
         const FACE_DESCRIPTOR_LENGTH = 128;
         const DAILY_EXIT_TIME = '16:45';
-        const FACE_SCAN_FRAMES = 8;          // fotogramas por escaneo de asistencia (más votos = menos confusión)
-        const FACE_REGISTER_FRAMES = 10;     // fotogramas por muestra de registro (más datos = mejor referencia)
+        const FACE_SCAN_FRAMES = 5;          // fotogramas por escaneo de asistencia (más votos = menos confusión)
+        const FACE_REGISTER_FRAMES = 6;      // fotogramas por muestra de registro (más datos = mejor referencia)
         const FACE_FRAME_CONSISTENCY = 0.30; // distancia máxima entre un fotograma y el promedio
         const FACE_MIN_VOTE_RATIO = 0.7;     // % de fotogramas que deben votar por el mismo alumno
         const FACE_CFG = {
@@ -1181,7 +1187,7 @@
         applyFaceAdv();
 
         const FaceGuard = {
-            human: null, loading: null, pending: null, warned: false,
+            human: null, loading: null, pending: null, warned: false, prefetched: null,
             async load() {
                 if (this.human) return this.human;
                 if (!window.Human) throw new Error('La IA 2 funciona solo en el servidor (no se carga en el navegador).');
@@ -1217,7 +1223,7 @@
                         if (f.real != null) real = Math.min(real, f.real);
                         if (f.live != null) live = Math.min(live, f.live);
                     }
-                    await wait(150);
+                    await wait(60);
                 }
                 if (embs.length < Math.ceil(n / 2)) return null;
                 return { emb: this.unit(this.mean(embs)), real, live };
@@ -1227,12 +1233,12 @@
                 if (!FACE_ADV.enabled) return;
                 if (FACE_ADV.server) {
                     try {
-                        const r = await this.serverCall('/api/face/embed', { images: await this.frames(videoId, 4), liveness: !!FACE_ADV.liveness });
+                        const r = await this.serverCall('/api/face/embed', { images: await this.frames(videoId, 3), liveness: !!FACE_ADV.liveness });
                         if (r.embedding) { (this.pending = this.pending || []).push(r.embedding); return; }
                     } catch (e) { console.warn('IA 2 servidor (registro):', e); }
                 }
                 try {
-                    const s = await this.embed(videoId, 4);
+                    const s = await this.embed(videoId, 3);
                     if (s) (this.pending = this.pending || []).push(s.emb);
                 } catch (e) { console.warn('IA 2 (registro):', e); }
             },
@@ -1242,8 +1248,19 @@
                 const hgt = Math.round(w * (v.videoHeight || 480) / (v.videoWidth || 640));
                 const c = document.createElement('canvas'); c.width = w; c.height = hgt;
                 const x = c.getContext('2d');
-                for (let i = 0; i < n; i++) { x.drawImage(v, 0, 0, w, hgt); out.push(c.toDataURL('image/jpeg', 0.85)); await wait(200); }
+                for (let i = 0; i < n; i++) { x.drawImage(v, 0, 0, w, hgt); out.push(c.toDataURL('image/jpeg', 0.8)); if (i < n - 1) await wait(80); }
                 return out;
+            },
+            // Captura las fotos para el servidor EN PARALELO con el analisis local (ahorra ~1 s).
+            prefetchFrames(videoId) {
+                this.prefetched = null;
+                if (!FACE_ADV.enabled || !FACE_ADV.server) return;
+                this.prefetched = wait(350).then(() => this.frames(videoId, 3)).catch(() => null);
+            },
+            async takeFrames(videoId, n) {
+                const p = this.prefetched; this.prefetched = null;
+                const got = p ? await p : null;
+                return got && got.length ? got : this.frames(videoId, n);
             },
             async serverCall(path, body) {
                 const res = await fetch(aireBaseUrl() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1255,7 +1272,7 @@
                 const cands = (res.candidates || []).filter(c => Array.isArray(c.faceDescriptor2));
                 try {
                     const r = await this.serverCall('/api/face/verify', {
-                        images: await this.frames(videoId, 5), liveness: !!FACE_ADV.liveness, minSim: FACE_ADV.minSim, minGap: FACE_ADV.minGap,
+                        images: await this.takeFrames(videoId, 3), liveness: !!FACE_ADV.liveness, minSim: FACE_ADV.minSim, minGap: FACE_ADV.minGap,
                         candidates: cands.map(c => ({ id: c.id, d2: c.faceDescriptor2 }))
                     });
                     if (!r.faceOk) return { student: null, reason: 'La IA del servidor no pudo ver un rostro único y claro. Repetí el escaneo de frente y con buena luz.' };
@@ -1277,7 +1294,7 @@
                 if (box) box.innerHTML = '<div class="py-6 text-center"><i class="fa-solid fa-spinner fa-spin text-gold-400 text-2xl"></i><p class="text-xs text-gray-400 mt-3">Verificando con la segunda IA…</p></div>';
                 if (FACE_ADV.server) { const rs = await this.reviewServer(res, scan, videoId); if (rs) return rs; }
                 let s = null;
-                try { s = await this.embed(videoId, 5); }
+                try { s = await this.embed(videoId, 3); }
                 catch (e) {
                     if (!this.warned) { this.warned = true; showToast('IA 2 del servidor no disponible; se usa solo el reconocimiento principal.'); }
                     return res.student ? res : Object.assign({}, res, { student: null });
@@ -1472,6 +1489,8 @@
                 activeStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 video.srcObject = activeStream;
                 startFaceGuide(videoId);
+                // Despierta/carga la IA facial del servidor mientras el usuario se acomoda.
+                if (FACE_ADV.enabled && FACE_ADV.server) fetch(aireBaseUrl() + '/api/face/status?warm=1', { cache: 'no-store' }).catch(() => {});
             } catch (err) {
                 showToast("No se pudo acceder a la cámara web.", "error");
             }
@@ -1604,9 +1623,9 @@
             return { face: sorted[0] };
         }
 
-        async function analyzeFaceFrame(video) {
+        async function analyzeFaceFrame(video, fast = false) {
             const results = await faceapi
-                .detectAllFaces(video, getFaceDetectorOptions())
+                .detectAllFaces(video, getFaceDetectorOptions(fast))
                 .withFaceLandmarks()
                 .withFaceDescriptors();
             if (results.length === 0) {
@@ -1628,7 +1647,7 @@
         }
 
         // Captura varios fotogramas buenos, descarta los atípicos y promedia el resto.
-        async function captureFaceScan(videoId, frameTarget = FACE_SCAN_FRAMES) {
+        async function captureFaceScan(videoId, frameTarget = FACE_SCAN_FRAMES, fast = false) {
             const video = document.getElementById(videoId);
             if (!video || !video.videoWidth) {
                 throw new Error("La cámara todavía no está lista. Esperá un momento y volvé a intentar.");
@@ -1638,10 +1657,10 @@
             const frames = [];
             let lastError = null;
             for (let attempt = 0; attempt < frameTarget * 3 && frames.length < frameTarget; attempt++) {
-                const result = await analyzeFaceFrame(video);
+                const result = await analyzeFaceFrame(video, fast);
                 if (result.error) lastError = result.error;
                 else frames.push(result.descriptor);
-                await wait(100);
+                await wait(30);
             }
 
             const minFrames = Math.ceil(frameTarget * 0.6);
@@ -1668,7 +1687,7 @@
             for (const step of ENROLL_STEPS) {
                 setFaceButtonBusy(true, step.text);
                 showToast(step.text);
-                await wait(1500);
+                await wait(900);
                 const scan = await captureFaceScan(videoId, FACE_REGISTER_FRAMES);
                 samples.push({ label: step.label, d: scan.descriptor });
                 await FaceGuard.enrollShot(videoId);
@@ -1937,7 +1956,8 @@
             `;
             let scan;
             try {
-                scan = await captureFaceScan('attend-video');
+                FaceGuard.prefetchFrames('attend-video');   // la IA 2 recibe sus fotos mientras la IA 1 analiza
+                scan = await captureFaceScan('attend-video', FACE_SCAN_FRAMES, true);
             } catch (error) {
                 scanBox.innerHTML = `
                     <div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-500/30">
@@ -2557,6 +2577,18 @@
             runAira(question);
         }
 
+        // Pagina del equipo Code Nexus: la IA la recomienda cuando preguntan por el equipo.
+        const NEXUS_URL = 'https://lucrb2231.github.io/Code-Nexus/#contacto';
+        const NEXUS_LINK_HTML = '<a href="' + NEXUS_URL + '" target="_blank" rel="noopener noreferrer" class="text-gold-400 hover:text-gold-500 underline font-semibold"><i class="fa-solid fa-arrow-up-right-from-square text-[10px] mr-1"></i>Conoce más sobre nosotros...</a>';
+        function isTeamQuestion(norm) {
+            return /code ?nexus|nexus|equipo|integrantes|desarrollador|creador|programador|(quien|quienes)\b.*(creo|crearon|hizo|hicieron|programo|programaron|desarroll|disen)|\b(lucas|facundo|justin|bonette|pintos|fagundez)\b/.test(norm);
+        }
+        function withNexusLink(html, norm) {
+            return isTeamQuestion(norm)
+                ? html + '<br><br>Para conocer mejor al equipo te recomiendo visitar su página:<br>' + NEXUS_LINK_HTML
+                : html;
+        }
+
         // Orquesta la respuesta: 1) comandos de agenda (local), 2) IA real si hay clave, 3) respuestas básicas.
         async function runAira(query) {
             const norm = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -2584,7 +2616,7 @@
             try {
                 const answer = await callAiraLLM(query, function (estado) { setAiTyping(typingId, estado); });
                 removeAiTyping(typingId);
-                appendAiMessage(aiFormat(answer), 'ai');
+                appendAiMessage(withNexusLink(aiFormat(answer), norm), 'ai');
                 aiHistory.push({ role: 'user', text: query }, { role: 'model', text: answer });
                 if (aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
             } catch (err) {
@@ -2804,7 +2836,7 @@
                 return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Marcos Lezama, director de orientación; y los tutores, adscriptos y psicólogos que figuran en esa sección.";
             }
             if (query.includes('quien te creo') || query.includes('equipo') || query.includes('code nexus') || query.includes('desarroll')) {
-                return "Fui desarrollada por el equipo <strong>CODE NEXUS</strong>: Justin Fagundez, Lucas Bonette y Facundo Pintos, para el Centro Educativo Los Pinos.";
+                return "Fui desarrollada por el equipo <strong>CODE NEXUS</strong>: Justin Fagundez, Lucas Bonette y Facundo Pintos, para el Centro Educativo Los Pinos.<br><br>Para conocer mejor al equipo te recomiendo visitar su página:<br>" + NEXUS_LINK_HTML;
             }
             if (query.includes('hola') || query.includes('buenas') || query.includes('buen dia') || query.includes('como estas')) {
                 return "¡Hola! Soy AIRA IA. Podés preguntarme sobre el sistema, el reconocimiento facial, los horarios o pedirme que te agende un evento. ¿En qué te ayudo?";
