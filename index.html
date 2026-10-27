@@ -974,6 +974,9 @@
                             </h2>
                             <p class="text-xs text-gray-400 mt-1">Equipo desarrollador de Veltrix Smart System para el Centro Educativo Los Pinos.</p>
                         </div>
+                        <a href="https://lucrb2231.github.io/Code-Nexus/#contacto" target="_blank" rel="noopener noreferrer" class="hidden sm:inline-flex items-center gap-2 text-gold-400 hover:text-gold-500 underline font-semibold text-xs whitespace-nowrap ml-4">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Conoce más sobre nosotros...
+                        </a>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1006,6 +1009,7 @@
                     </div>
 
                     <div class="mt-6 text-center">
+                        <p class="text-xs text-gray-400 mb-3">Para conocer más de la empresa visita la web oficial:</p>
                         <a href="https://lucrb2231.github.io/Code-Nexus/#contacto" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-darkbg font-bold text-xs px-5 py-3 rounded-xl transition">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Conoce más sobre nosotros...
                         </a>
@@ -2585,7 +2589,7 @@
         }
         function withNexusLink(html, norm) {
             return isTeamQuestion(norm)
-                ? html + '<br><br>Para conocer mejor al equipo te recomiendo visitar su página:<br>' + NEXUS_LINK_HTML
+                ? html + '<br><br>Para conocer más de la empresa visita la web oficial:<br>' + NEXUS_LINK_HTML
                 : html;
         }
 
@@ -2836,7 +2840,7 @@
                 return "El equipo de Los Pinos incluye a Pedro Presno, director general; María Jesús López, directora del Liceo Técnico; José Marcos Lezama, director de orientación; y los tutores, adscriptos y psicólogos que figuran en esa sección.";
             }
             if (query.includes('quien te creo') || query.includes('equipo') || query.includes('code nexus') || query.includes('desarroll')) {
-                return "Fui desarrollada por el equipo <strong>CODE NEXUS</strong>: Justin Fagundez, Lucas Bonette y Facundo Pintos, para el Centro Educativo Los Pinos.<br><br>Para conocer mejor al equipo te recomiendo visitar su página:<br>" + NEXUS_LINK_HTML;
+                return "Fui desarrollada por el equipo <strong>CODE NEXUS</strong>: Justin Fagundez, Lucas Bonette y Facundo Pintos, para el Centro Educativo Los Pinos.<br><br>Para conocer más de la empresa visita la web oficial:<br>" + NEXUS_LINK_HTML;
             }
             if (query.includes('hola') || query.includes('buenas') || query.includes('buen dia') || query.includes('como estas')) {
                 return "¡Hola! Soy AIRA IA. Podés preguntarme sobre el sistema, el reconocimiento facial, los horarios o pedirme que te agende un evento. ¿En qué te ayudo?";
