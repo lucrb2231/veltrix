@@ -837,27 +837,6 @@
                             </div>
                     </div>
 
-                    <!-- Sensor de tokens: saldo total estimado (discreto, sin nombres ni avisos de cambio) -->
-                    <div id="ai-quota-panel" class="mb-3 bg-darkbg/80 border border-borderbg rounded-xl px-3 py-2">
-                        <div class="flex items-center justify-between gap-2 text-[10px] text-gray-400">
-                            <span class="flex items-center gap-1.5 min-w-0">
-                                <i class="fa-solid fa-gauge-high text-gold-500"></i>
-                                <span id="ai-quota-name" class="font-semibold text-gray-300 truncate">Tokens disponibles</span>
-                                <span id="ai-quota-badge" class="hidden"></span>
-                            </span>
-                            <span id="ai-quota-text" class="font-mono text-[10px] text-gray-300 whitespace-nowrap">—</span>
-                        </div>
-                        <div class="mt-1.5 h-1.5 w-full bg-black/50 rounded-full overflow-hidden">
-                            <div id="ai-quota-bar" class="h-full bg-emerald-500 transition-all duration-500" style="width:100%"></div>
-                        </div>
-                        <div class="flex items-center justify-between gap-2 mt-1.5">
-                            <span id="ai-quota-hint" class="text-[9px] text-gray-500 truncate">Saldo estimado disponible.</span>
-                            <button type="button" onclick="refreshQuotaSensor(true)" title="Actualizar saldo de tokens" class="text-[9px] text-gray-400 hover:text-gold-400 flex items-center gap-1 flex-shrink-0">
-                                <i class="fa-solid fa-rotate"></i> Actualizar
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- Chat Box -->
                     <div id="ai-chat-box" class="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
                         <div class="flex items-start gap-3">
@@ -2795,117 +2774,6 @@
             if (txt) txt.textContent = 'Modo basico';
         }
 
-        /* ==================================================================
-         *  SENSOR DE TOKENS (DISCRETO)
-         *  Lee /api/ai/quota y muestra solo el saldo TOTAL de las IA
-         *  configuradas. No muestra nombres, roles ni avisos de cambio:
-         *  el cambio automatico ocurre sin que se note en la interfaz.
-         * ================================================================== */
-        let quotaRefreshTimer = null;
-
-        function formatTokens(n) {
-            if (n == null || !isFinite(n)) return '—';
-            const v = Math.max(0, Math.round(n));
-            if (v >= 1000000) return (v / 1000000).toFixed(v >= 10000000 ? 0 : 1).replace('.', ',') + ' M';
-            if (v >= 1000) return (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace('.', ',') + ' k';
-            return String(v);
-        }
-
-        function renderQuotaSensor(snap) {
-            if (!snap || !Array.isArray(snap.providers)) return;
-            window.__airaQuota = snap;
-
-            const nameEl = document.getElementById('ai-quota-name');
-            const textEl = document.getElementById('ai-quota-text');
-            const barEl = document.getElementById('ai-quota-bar');
-            const hintEl = document.getElementById('ai-quota-hint');
-            const badgeEl = document.getElementById('ai-quota-badge');
-            if (!nameEl || !textEl || !barEl) return;
-
-            const configured = snap.providers.filter(function (p) { return p.configured; });
-            if (badgeEl) badgeEl.classList.add('hidden');
-
-            if (!configured.length) {
-                nameEl.textContent = 'Tokens disponibles';
-                textEl.textContent = '—';
-                barEl.style.width = '0%';
-                barEl.className = 'h-full bg-rose-500 transition-all duration-500';
-                if (hintEl) hintEl.textContent = 'Cargá una clave de IA en el servidor para activar el sensor.';
-                setBasicMode();
-                return;
-            }
-
-            // Saldo TOTAL de las IA configuradas: al cambiar de proveedor el
-            // numero no salta, asi el cambio pasa desapercibido.
-            let remaining = 0, limit = 0, hasRemaining = false, hasLimit = false;
-            configured.forEach(function (p) {
-                if (p.remaining != null && isFinite(p.remaining)) { remaining += Number(p.remaining); hasRemaining = true; }
-                if (p.limit != null && isFinite(p.limit) && p.limit > 0) { limit += Number(p.limit); hasLimit = true; }
-            });
-
-            nameEl.textContent = 'Tokens disponibles';
-
-            if (!hasRemaining) {
-                textEl.textContent = 'saldo no informado';
-                textEl.className = 'font-mono text-[10px] text-gray-400 whitespace-nowrap';
-                barEl.style.width = '100%';
-                barEl.className = 'h-full bg-sky-500/40 transition-all duration-500';
-                if (hintEl) hintEl.textContent = 'La IA no informa su saldo; se controla el consumo localmente.';
-            } else {
-                const pct = hasLimit ? Math.max(0, Math.min(100, Math.round((remaining / limit) * 100))) : null;
-                if (remaining <= 0) {
-                    textEl.textContent = 'sin tokens';
-                    textEl.className = 'font-mono text-[10px] text-rose-400 whitespace-nowrap';
-                    barEl.style.width = '0%';
-                    barEl.className = 'h-full bg-rose-500 transition-all duration-500';
-                } else {
-                    textEl.textContent = formatTokens(remaining) + ' tokens';
-                    textEl.className = 'font-mono text-[10px] whitespace-nowrap ' + (pct == null || pct > 40 ? 'text-emerald-400' : pct > 15 ? 'text-amber-400' : 'text-rose-400');
-                    barEl.style.width = (pct == null ? 100 : Math.max(2, pct)) + '%';
-                    barEl.className = 'h-full transition-all duration-500 ' + (pct == null ? 'bg-sky-500/40' : pct > 40 ? 'bg-emerald-500' : pct > 15 ? 'bg-amber-500' : 'bg-rose-500');
-                }
-                if (hintEl) {
-                    hintEl.textContent = remaining <= 0
-                        ? 'Saldo estimado agotado. El servicio puede responder en modo básico.'
-                        : (hasLimit
-                            ? 'Quedan ' + formatTokens(remaining) + ' de ' + formatTokens(limit) + ' tokens (' + pct + '%).'
-                            : 'Quedan ' + formatTokens(remaining) + ' tokens estimados.');
-                }
-            }
-
-            // El chip solo dice si hay IA disponible, sin nombrar proveedores.
-            const allExhausted = configured.every(function (p) { return p.exhausted; });
-            if (allExhausted) setBasicMode(); else updateAiStatus();
-        }
-
-        async function refreshQuotaSensor(manual) {
-            const hintEl = document.getElementById('ai-quota-hint');
-            if (manual && hintEl) hintEl.textContent = 'Leyendo el saldo de tokens…';
-            try {
-                const prov = AIRA_PROVIDER ? '&provider=' + encodeURIComponent(AIRA_PROVIDER) : '';
-                // compact=1: el servidor devuelve solo numeros, sin nombres de IA
-                // ni datos del cambio automatico.
-                const res = await fetch(aireBaseUrl() + '/api/ai/quota?compact=1&refresh=' + (manual ? '1' : '0') + prov, { cache: 'no-store' });
-                const data = await res.json();
-                if (!res.ok) throw new Error((data && data.error) || ('Servidor ' + res.status));
-                renderQuotaSensor(data);
-            } catch (e) {
-                if (hintEl) {
-                    hintEl.textContent = 'No se pudo leer el saldo de tokens (servidor despierto o sin conexión).';
-                }
-            }
-        }
-
-        function startQuotaSensor() {
-            refreshQuotaSensor(false);
-            if (quotaRefreshTimer) clearInterval(quotaRefreshTimer);
-            quotaRefreshTimer = setInterval(function () {
-                if (!document.hidden) refreshQuotaSensor(false);
-            }, 60000);
-        }
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startQuotaSensor);
-        else setTimeout(startQuotaSensor, 0);
-
         // Revisa si el servidor de IA esta disponible.
         async function loadAiConfig() {
             updateAiStatus();
@@ -2971,7 +2839,6 @@
                 }
                 let data = null;
                 try { data = await res.json(); } catch (e) {}
-                if (data && data.quota) renderQuotaSensor(data.quota);
                 if (!res.ok) {
                     // Si se agotó el saldo, no se nombran proveedores: el
                     // cambio de IA tiene que pasar desapercibido.
