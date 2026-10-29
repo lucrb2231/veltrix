@@ -1094,7 +1094,7 @@
                             </h2>
                             <p class="text-xs text-gray-400 mt-1">Equipo desarrollador de Veltrix Smart System para el Centro Educativo Los Pinos.</p>
                         </div>
-                        <a href="https://lucrb2231.github.io/Code-Nexus/#contacto" target="_blank" rel="noopener noreferrer" class="hidden sm:inline-flex items-center gap-2 text-gold-400 hover:text-gold-500 underline font-semibold text-xs whitespace-nowrap ml-4">
+                        <a href="https://lucrb2231.github.io/Code-Nexus/%69ndex.html#contacto" onclick="this.href=nexusUrl()" target="_blank" rel="noopener noreferrer" title="Abre siempre la versión más reciente de la web" class="hidden sm:inline-flex items-center gap-2 text-gold-400 hover:text-gold-500 underline font-semibold text-xs whitespace-nowrap ml-4">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Conoce más sobre nosotros...
                         </a>
                     </div>
@@ -1130,7 +1130,7 @@
 
                     <div class="mt-6 text-center">
                         <p class="text-xs text-gray-400 mb-3">Para conocer más de la empresa visita la web oficial:</p>
-                        <a href="https://lucrb2231.github.io/Code-Nexus/#contacto" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-darkbg font-bold text-xs px-5 py-3 rounded-xl transition">
+                        <a href="https://lucrb2231.github.io/Code-Nexus/%69ndex.html#contacto" onclick="this.href=nexusUrl()" target="_blank" rel="noopener noreferrer" title="Abre siempre la versión más reciente de la web" class="inline-flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-darkbg font-bold text-xs px-5 py-3 rounded-xl transition">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Conoce más sobre nosotros...
                         </a>
                     </div>
@@ -2742,8 +2742,24 @@
         }
 
         // Pagina del equipo Code Nexus: la IA la recomienda cuando preguntan por el equipo.
-        const NEXUS_URL = 'https://lucrb2231.github.io/Code-Nexus/#contacto';
-        const NEXUS_LINK_HTML = '<a href="' + NEXUS_URL + '" target="_blank" rel="noopener noreferrer" class="text-gold-400 hover:text-gold-500 underline font-semibold"><i class="fa-solid fa-arrow-up-right-from-square text-[10px] mr-1"></i>Conoce más sobre nosotros...</a>';
+        const NEXUS_BASE = 'https://lucrb2231.github.io/Code-Nexus/';
+        const NEXUS_FILE = 'index.html';
+        // GitHub Pages/Fastly ignora el query string al cachear el HTML (max-age=600),
+        // así que un simple ?v= no alcanza. Codificamos al azar algunas letras del
+        // nombre del archivo (por ejemplo %69ndex.html): el servidor lo resuelve igual,
+        // pero para la CDN es una URL nueva y trae la versión recién publicada del repo.
+        function nexusUrl() {
+            let file = '';
+            for (const ch of NEXUS_FILE) {
+                file += /[a-z]/i.test(ch) && Math.random() < 0.45
+                    ? '%' + ch.charCodeAt(0).toString(16)
+                    : ch;
+            }
+            if (file === NEXUS_FILE) file = '%69ndex.html';
+            return NEXUS_BASE + file + '?v=' + Date.now() + '#contacto';
+        }
+        const NEXUS_URL = nexusUrl();
+        const NEXUS_LINK_HTML = '<a href="' + NEXUS_URL + '" onclick="this.href=nexusUrl()" target="_blank" rel="noopener noreferrer" class="text-gold-400 hover:text-gold-500 underline font-semibold"><i class="fa-solid fa-arrow-up-right-from-square text-[10px] mr-1"></i>Conoce más sobre nosotros...</a>';
         function isTeamQuestion(norm) {
             return /code ?nexus|nexus|equipo|integrantes|desarrollador|creador|programador|(quien|quienes)\b.*(creo|crearon|hizo|hicieron|programo|programaron|desarroll|disen)|\b(lucas|facundo|justin|bonette|pintos|fagundez)\b/.test(norm);
         }
