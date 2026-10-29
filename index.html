@@ -922,9 +922,35 @@
                     </div>
 
                     <!-- Modo de vista (opcional): ver todo, linea de tiempo, solo lo personal o solo lo que agrega la institucion -->
-                    <div class="mb-5 flex items-center gap-2 flex-wrap">
-                        <span class="text-[11px] text-gray-400 mr-1"><i class="fa-solid fa-eye mr-1 text-gold-500"></i>Ver:</span>
-                        <div id="agenda-view-chips" class="flex items-center gap-2 flex-wrap"></div>
+                    <div class="mb-5 border-b border-borderbg overflow-x-auto">
+                        <div id="agenda-view-chips" class="flex items-end gap-1 min-w-max"></div>
+                    </div>
+                    <!-- Calendario mensual con los eventos marcados -->
+                    <div id="agenda-card-calendar" class="hidden mb-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                            <div class="lg:col-span-3 bg-darkbg border border-borderbg rounded-2xl overflow-hidden">
+                                <div class="flex items-center justify-between px-4 py-3" style="background:#4a7096">
+                                    <button onclick="agendaCalNav(-1)" class="w-8 h-8 rounded-lg text-white hover:bg-white/15 transition" title="Mes anterior"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                    <button onclick="agendaCalToday()" id="agenda-cal-title" class="text-white font-semibold text-base hover:opacity-80 transition" title="Ir a hoy"></button>
+                                    <button onclick="agendaCalNav(1)" class="w-8 h-8 rounded-lg text-white hover:bg-white/15 transition" title="Mes siguiente"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                </div>
+                                <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-400 py-2 bg-cardbg border-b border-borderbg">
+                                    <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+                                </div>
+                                <div id="agenda-cal-grid" class="grid grid-cols-7 gap-1 p-2 sm:p-3"></div>
+                                <div class="flex items-center gap-4 flex-wrap px-4 pb-3 text-[10px] text-gray-400">
+                                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background:#5cb85c"></span>Institucional</span>
+                                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gold-500"></span>Personal</span>
+                                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background:linear-gradient(135deg,#5cb85c 50%,#FFD700 50%)"></span>Ambos</span>
+                                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-gold-500"></span>Hoy</span>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-2 bg-darkbg border border-borderbg rounded-2xl p-5">
+                                <h3 id="agenda-cal-day-title" class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-3 flex items-center gap-2"></h3>
+                                <div id="agenda-cal-day-list" class="space-y-2 mb-4"></div>
+                                <div id="agenda-cal-day-actions" class="flex flex-wrap gap-2"></div>
+                            </div>
+                        </div>
                     </div>
                     <div id="agenda-card-timeline" class="hidden bg-darkbg border border-borderbg rounded-2xl p-5 mb-6">
                         <h3 class="text-xs font-bold text-gold-500 uppercase tracking-wide mb-1 flex items-center gap-2"><i class="fa-solid fa-timeline"></i> Línea de tiempo</h3>
@@ -3658,7 +3684,7 @@
         }
 
         // ---- Modo de vista de la agenda (opcional; por defecto "Todo" = como estaba) ----
-        let agendaView = (function () { try { return localStorage.getItem('veltrix_agenda_view') || 'all'; } catch (e) { return 'all'; } })();
+        let agendaView = (function () { try { return localStorage.getItem('veltrix_agenda_view') || 'calendar'; } catch (e) { return 'calendar'; } })();
         function setAgendaView(v) {
             agendaView = v;
             try { localStorage.setItem('veltrix_agenda_view', v); } catch (e) { /* sin almacenamiento */ }
@@ -3667,11 +3693,14 @@
         function applyAgendaView() {
             const g = id => document.getElementById(id);
             if (!g('agenda-view-chips')) return;
-            if (!['all', 'timeline', 'personal', 'public'].includes(agendaView)) agendaView = 'all';
-            const opts = [['all', 'Todo'], ['timeline', 'Línea de tiempo'], ['personal', 'Mis eventos (' + personalEvents.length + ')'], ['public', 'De la institución (' + publicEvents.length + ')']];
-            g('agenda-view-chips').innerHTML = opts.map(o => `<button onclick="setAgendaView('${o[0]}')" class="text-[11px] font-bold px-3 py-1.5 rounded-full border transition ${agendaView === o[0] ? 'bg-gold-500 text-darkbg border-gold-500' : 'bg-darkbg text-gray-400 border-borderbg hover:text-white'}">${o[1]}</button>`).join('');
+            if (!['calendar', 'all', 'timeline', 'personal', 'public'].includes(agendaView)) agendaView = 'calendar';
+            const opts = [['calendar', 'fa-calendar-days', 'Calendario'], ['public', 'fa-bullhorn', 'Eventos institucionales (' + publicEvents.length + ')'], ['personal', 'fa-user-clock', 'Mi agenda (' + personalEvents.length + ')'], ['timeline', 'fa-timeline', 'Línea de tiempo'], ['all', 'fa-table-columns', 'Todo']];
+            g('agenda-view-chips').innerHTML = opts.map(o => `<button onclick="setAgendaView('${o[0]}')" class="text-xs font-bold px-4 py-2.5 border-b-2 -mb-px transition whitespace-nowrap flex items-center gap-2 ${agendaView === o[0] ? 'text-gold-500 border-gold-500' : 'text-gray-400 border-transparent hover:text-white'}"><i class="fa-solid ${o[1]}"></i>${o[2]}</button>`).join('');
             const timeline = agendaView === 'timeline';
-            g('agenda-grid').classList.toggle('hidden', timeline);
+            const cal = agendaView === 'calendar';
+            g('agenda-card-calendar').classList.toggle('hidden', !cal);
+            if (cal) renderAgendaCalendar();
+            g('agenda-grid').classList.toggle('hidden', timeline || cal);
             g('agenda-grid').classList.toggle('lg:grid-cols-2', agendaView === 'all');
             g('agenda-card-personal').classList.toggle('hidden', agendaView === 'public');
             g('agenda-card-public').classList.toggle('hidden', agendaView === 'personal');
@@ -3683,6 +3712,81 @@
                     ? all.map(x => eventCardHtml(x.e, x.scope, x.scope === 'personal' ? !!currentUser : canManagePublicAgenda())).join('')
                     : '<p class="text-xs text-gray-500">No hay eventos todavía.</p>';
             }
+        }
+
+
+        // ---- Calendario mensual de la agenda ----
+        const _hoy = new Date();
+        let agendaCal = { y: _hoy.getFullYear(), m: _hoy.getMonth(), sel: null };
+        const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        function dateKey(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+        function agendaCalNav(delta) {
+            agendaCal.m += delta;
+            if (agendaCal.m < 0) { agendaCal.m = 11; agendaCal.y--; }
+            if (agendaCal.m > 11) { agendaCal.m = 0; agendaCal.y++; }
+            agendaCal.sel = null;
+            renderAgendaCalendar();
+        }
+        function agendaCalToday() {
+            const t = new Date();
+            agendaCal = { y: t.getFullYear(), m: t.getMonth(), sel: dateKey(t.getFullYear(), t.getMonth(), t.getDate()) };
+            renderAgendaCalendar();
+        }
+        function agendaCalSelect(key) { agendaCal.sel = key; renderAgendaCalendar(); }
+        function agendaCalAdd(scope, key) {
+            setAgendaView(scope);
+            const id = scope === 'public' ? 'agenda-g-date' : 'agenda-p-date';
+            const el = document.getElementById(id);
+            if (el) { el.value = key; const t = document.getElementById(scope === 'public' ? 'agenda-g-title' : 'agenda-p-title'); if (t) t.focus(); }
+        }
+        function renderAgendaCalendar() {
+            const g = id => document.getElementById(id);
+            if (!g('agenda-cal-grid')) return;
+            const { y, m } = agendaCal;
+            const today = new Date();
+            const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+            if (!agendaCal.sel) agendaCal.sel = (today.getFullYear() === y && today.getMonth() === m) ? todayKey : dateKey(y, m, 1);
+
+            // Eventos por día (la fecha viene como "YYYY-MM-DDTHH:MM")
+            const byDay = {};
+            personalEvents.forEach(e => { const k = String(e.datetime).slice(0, 10); (byDay[k] = byDay[k] || { p: [], g: [] }).p.push(e); });
+            publicEvents.forEach(e => { const k = String(e.datetime).slice(0, 10); (byDay[k] = byDay[k] || { p: [], g: [] }).g.push(e); });
+
+            g('agenda-cal-title').innerHTML = MESES_ES[m] + ' <b>' + y + '</b>';
+            const offset = (new Date(y, m, 1).getDay() + 6) % 7; // semana empieza en lunes
+            const days = new Date(y, m + 1, 0).getDate();
+            let html = '';
+            for (let i = 0; i < offset; i++) html += '<div></div>';
+            for (let d = 1; d <= days; d++) {
+                const k = dateKey(y, m, d);
+                const ev = byDay[k];
+                const dow = (offset + d - 1) % 7;
+                const weekend = dow >= 5;
+                let bg = '', color = weekend ? '#f0882d' : '#E5E7EB', extra = '';
+                if (ev && ev.g.length && ev.p.length) { bg = 'background:linear-gradient(135deg,#5cb85c 50%,#FFD700 50%)'; color = '#0D0D0D'; }
+                else if (ev && ev.g.length) { bg = 'background:#5cb85c'; color = '#fff'; }
+                else if (ev && ev.p.length) { bg = 'background:#FFD700'; color = '#0D0D0D'; }
+                if (k === todayKey) extra += ';box-shadow:inset 0 0 0 2px #FFD700';
+                if (k === agendaCal.sel) extra += ';outline:2px solid #fff;outline-offset:1px';
+                const count = ev ? ev.g.length + ev.p.length : 0;
+                html += `<button onclick="agendaCalSelect('${k}')" class="relative h-11 sm:h-14 rounded-md text-sm font-semibold transition hover:brightness-110 hover:bg-borderbg/60" style="${bg};color:${color}${extra}">${d}${count > 1 ? `<span class="absolute top-0.5 right-1 text-[9px] font-bold opacity-80">${count}</span>` : ''}</button>`;
+            }
+            g('agenda-cal-grid').innerHTML = html;
+
+            // Detalle del día elegido
+            const sel = agendaCal.sel;
+            const [sy, sm, sd] = sel.split('-').map(Number);
+            const label = new Date(sy, sm - 1, sd).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+            g('agenda-cal-day-title').innerHTML = '<i class="fa-solid fa-calendar-day"></i> ' + label;
+            const ev = byDay[sel] || { p: [], g: [] };
+            const items = ev.g.map(e => ({ e, scope: 'public' })).concat(ev.p.map(e => ({ e, scope: 'personal' })))
+                .sort((a, b) => String(a.e.datetime).localeCompare(String(b.e.datetime)));
+            g('agenda-cal-day-list').innerHTML = items.length
+                ? items.map(x => eventCardHtml(x.e, x.scope, x.scope === 'personal' ? !!currentUser : canManagePublicAgenda())).join('')
+                : '<p class="text-xs text-gray-500">No hay eventos este día.</p>';
+            let actions = '<button onclick="agendaCalAdd(\'personal\',\'' + sel + '\')" class="text-[11px] font-bold px-3 py-2 rounded-xl bg-gold-500/10 text-gold-500 border border-gold-500/30 hover:bg-gold-500/20 transition"><i class="fa-solid fa-plus mr-1"></i>Evento personal</button>';
+            if (canManagePublicAgenda()) actions += '<button onclick="agendaCalAdd(\'public\',\'' + sel + '\')" class="text-[11px] font-bold px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition"><i class="fa-solid fa-bullhorn mr-1"></i>Evento institucional</button>';
+            g('agenda-cal-day-actions').innerHTML = actions;
         }
 
         function makeEventId() { return 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
