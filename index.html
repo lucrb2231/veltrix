@@ -3299,7 +3299,7 @@
         }
 
         // ---------- Firebase ----------
-        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, adminUsers = [];
+        let fb = null, pendingName = null, pendingCargo = null, unsubStudents = null, unsubUsers = null, unsubAgendaPublic = null, adminUsers = [];
         const syncedJson = new Map();
 
         async function initCloud() {
@@ -3318,6 +3318,7 @@
         async function onCloudAuthChange(user) {
             if (unsubStudents) { unsubStudents(); unsubStudents = null; }
             if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+            if (unsubAgendaPublic) { unsubAgendaPublic(); unsubAgendaPublic = null; }
             if (!user) { currentUser = null; adminUsers = []; updateAuthHeader(); return; }
             const { doc, getDoc, setDoc, writeBatch, serverTimestamp } = fb.F;
             const loginId = user.email && user.email.endsWith('@' + USERNAME_DOMAIN) ? user.email.split('@')[0] : user.email;
@@ -3344,7 +3345,7 @@
             }
             currentUser = { uid: user.uid, name: profile.name, email: user.email, role: profile.role, status: profile.status, cargo: profile.cargo || 'Otro', faceAdv: !!profile.faceAdv };
             closeAuthModal(); showToast(`Sesión iniciada como ${currentUser.name}`, 'success'); updateAuthHeader();
-            startStudentsSync(); if (isAdminUser()) startAdminUsersSync();
+            startStudentsSync(); startAgendaPublicSync(); if (isAdminUser()) startAdminUsersSync();
         }
 
         function renderAllStudents() { renderStudentsTable(); updateDashboardMetrics(); populateJustificationSelect(); }
@@ -3681,7 +3682,18 @@
             updateAgendaBadge();
             checkAgendaNotifications();
             if (agendaTimer) clearInterval(agendaTimer);
-            agendaTimer = setInterval(checkAgendaNotifications, 60000); // revisa cada minuto
+            agendaTimer = setInterval(checkAgendaNotifications, 15000); // revisa cada 15 s
+            if (!window._agendaHooks) {
+                window._agendaHooks = true;
+                document.addEventListener('visibilitychange', () => { if (!document.hidden) checkAgendaNotifications(); });
+                window.addEventListener('focus', checkAgendaNotifications);
+                window.addEventListener('storage', e => {
+                    if (e.key === 'veltrix_agenda_public' && !CLOUD_ENABLED) {
+                        try { publicEvents = JSON.parse(e.newValue || '[]'); } catch (err) { return; }
+                        renderAgenda(); updateAgendaBadge(); checkAgendaNotifications();
+                    }
+                });
+            }
         }
         function refreshAgendaForUser() {
             loadPersonalEvents();
@@ -3868,6 +3880,48 @@
             g('agenda-cal-day-actions').innerHTML = actions;
         }
 
+        // ---- Eventos públicos en la nube: así TODOS los usuarios los reciben (no solo este navegador) ----
+        async function startAgendaPublicSync() {
+            if (!CLOUD_ENABLED || !fb || !currentUser?.uid) return;
+            if (unsubAgendaPublic) { unsubAgendaPublic(); unsubAgendaPublic = null; }
+            const { collection, getDocs, onSnapshot, doc, setDoc } = fb.F;
+            const col = collection(fb.db, 'agenda_public');
+            try {
+                // Una sola vez: un usuario de rango alto sube los eventos que había guardado solo en este navegador.
+                if (canManagePublicAgenda() && !localStorage.getItem('veltrix_agenda_public_migrated')) {
+                    const first = await getDocs(col);
+                    const ids = new Set(first.docs.map(d => d.id));
+                    for (const ev of publicEvents.filter(e => e && e.id && !ids.has(e.id))) {
+                        await setDoc(doc(fb.db, 'agenda_public', ev.id), { createdAt: Date.now(), ...ev });
+                    }
+                    localStorage.setItem('veltrix_agenda_public_migrated', '1');
+                }
+                unsubAgendaPublic = onSnapshot(col, snap => {
+                    publicEvents = snap.docs.map(d => d.data()).filter(e => e && e.id && e.datetime);
+                    savePublicEvents();
+                    renderAgenda(); updateAgendaBadge();
+                    checkAgendaNotifications(); // avisa de lo nuevo apenas llega
+                }, err => {
+                    console.error(err);
+                    showToast('No se pudo leer la agenda pública de la base de datos. Revisá las reglas de Firestore (colección agenda_public).', 'error');
+                });
+            } catch (err) {
+                console.error(err);
+                showToast('Sin acceso a la agenda pública en la base de datos. Revisá las reglas de Firestore (colección agenda_public).', 'error');
+            }
+        }
+        async function cloudSavePublicEvent(ev) {
+            if (!CLOUD_ENABLED) return true;
+            if (!(fb && currentUser?.uid)) return false;
+            try { await fb.F.setDoc(fb.F.doc(fb.db, 'agenda_public', ev.id), ev); return true; }
+            catch (err) { console.error(err); showToast('No se pudo publicar en la base de datos: los demás usuarios no lo verán. Revisá las reglas de Firestore.', 'error'); return false; }
+        }
+        async function cloudDeletePublicEvent(id) {
+            if (!CLOUD_ENABLED || !(fb && currentUser?.uid)) return;
+            try { await fb.F.deleteDoc(fb.F.doc(fb.db, 'agenda_public', id)); }
+            catch (err) { console.error(err); showToast('No se pudo borrar el evento de la base de datos.', 'error'); }
+        }
+
         function makeEventId() { return 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
         function handleAddPersonalEvent(e) {
@@ -3902,20 +3956,25 @@
             e.target.reset();
         }
         function addPublicEvent(title, datetime, desc) {
-            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración' };
+            const ev = { id: makeEventId(), title, datetime, desc: desc || '', author: currentUser ? currentUser.name : 'Administración', createdAt: Date.now() };
             publicEvents.push(ev);
             savePublicEvents();
             agendaSeenPublic.add(ev.id); // quien lo crea ya lo "vio"
             saveAgendaMeta();
             renderAgenda(); updateAgendaBadge();
-            showToast('📢 Evento publicado. Se notificó a todos los usuarios: ' + title, 'success');
+            cloudSavePublicEvent(ev).then(ok => {
+                if (ok) {
+                    showToast('📢 Evento publicado. Todos los usuarios reciben el aviso: ' + title, 'success');
+                    sendSystemNotification('📢 Evento publicado', title + ' — ' + formatEventDate(datetime), 'agenda-pub-' + ev.id);
+                }
+            });
             return ev;
         }
 
         function deleteAgendaEvent(scope, id) {
             if (scope === 'public') {
                 if (!canManagePublicAgenda()) { showToast('Solo un usuario de rango alto puede modificar la agenda pública.', 'error'); return; }
-                publicEvents = publicEvents.filter(e => e.id !== id); savePublicEvents();
+                publicEvents = publicEvents.filter(e => e.id !== id); savePublicEvents(); cloudDeletePublicEvent(id);
             } else {
                 personalEvents = personalEvents.filter(e => e.id !== id); savePersonalEvents();
             }
@@ -3925,24 +3984,47 @@
 
         function checkAgendaNotifications() {
             const now = Date.now();
-            // Avisar de nuevos eventos públicos (futuros) que este navegador aún no vio.
-            publicEvents.forEach(ev => {
-                if (!agendaSeenPublic.has(ev.id)) {
-                    agendaSeenPublic.add(ev.id);
-                    if (new Date(ev.datetime).getTime() >= now) {
-                        showToast('📢 Nuevo evento público: ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
-                        sendSystemNotification('📢 Nuevo evento público', ev.title + ' — ' + formatEventDate(ev.datetime));
-                    }
-                }
-            });
-            // Recordatorios de eventos próximos (dentro de 24 h).
-            upcomingEvents().forEach(ev => {
+            const H = 3600 * 1000;
+            // 1) Aviso apenas se crea un evento público (a todos los usuarios con la página abierta).
+            const fresh = publicEvents.filter(ev => !agendaSeenPublic.has(ev.id));
+            fresh.forEach(ev => agendaSeenPublic.add(ev.id));
+            const freshFuture = fresh.filter(ev => new Date(ev.datetime).getTime() >= now - 6 * H);
+            if (freshFuture.length > 3) {
+                showToast('📢 Hay ' + freshFuture.length + ' eventos públicos nuevos en la agenda.', 'info');
+                sendSystemNotification('📢 Eventos públicos nuevos', 'Hay ' + freshFuture.length + ' eventos nuevos en la agenda.', 'agenda-new-batch');
+            } else {
+                freshFuture.forEach(ev => {
+                    showToast('📢 Nuevo evento público: ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
+                    sendSystemNotification('📢 Nuevo evento público', ev.title + ' — ' + formatEventDate(ev.datetime), 'agenda-new-' + ev.id);
+                });
+            }
+            // 2) Recordatorios: 24 h antes, 1 h antes y cuando llega la fecha y hora marcadas.
+            const all = personalEvents.map(e => ({ ...e, scope: 'personal' })).concat(publicEvents.map(e => ({ ...e, scope: 'public' })));
+            all.forEach(ev => {
                 const diff = new Date(ev.datetime).getTime() - now;
-                if (diff > 0 && diff <= 24 * 3600 * 1000 && !agendaReminded.has(ev.id)) {
-                    agendaReminded.add(ev.id);
-                    const quien = ev.scope === 'public' ? 'evento público' : 'tu evento';
-                    showToast('⏰ Recordatorio de ' + quien + ': ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
-                    sendSystemNotification('⏰ Recordatorio: ' + ev.title, 'Se acerca ' + quien + ' — ' + formatEventDate(ev.datetime));
+                if (isNaN(diff)) return;
+                const quien = ev.scope === 'public' ? 'Evento institucional' : 'Tu evento';
+                const done = k => agendaReminded.has(ev.id + ':' + k);
+                const mark = (...ks) => ks.forEach(k => agendaReminded.add(ev.id + ':' + k));
+                if (diff <= 0 && diff > -6 * H) {
+                    if (!done('now')) {
+                        mark('now', 'hour', 'day'); agendaReminded.add(ev.id);
+                        showToast('🔔 ¡Es ahora! ' + quien + ': ' + ev.title, 'info');
+                        sendSystemNotification('🔔 ¡Es ahora! ' + ev.title, quien + ' — ' + formatEventDate(ev.datetime), 'agenda-now-' + ev.id);
+                    }
+                } else if (diff > 0 && diff <= H) {
+                    if (!done('hour')) {
+                        mark('hour', 'day'); agendaReminded.add(ev.id);
+                        const min = Math.max(1, Math.round(diff / 60000));
+                        showToast('⏰ En ' + min + ' min: ' + ev.title + ' (' + quien.toLowerCase() + ')', 'info');
+                        sendSystemNotification('⏰ En ' + min + ' min: ' + ev.title, quien + ' — ' + formatEventDate(ev.datetime), 'agenda-hour-' + ev.id);
+                    }
+                } else if (diff > H && diff <= 24 * H) {
+                    if (!done('day') && !agendaReminded.has(ev.id)) {
+                        mark('day');
+                        showToast('📅 Se acerca: ' + ev.title + ' — ' + formatEventDate(ev.datetime) + ' (' + quien.toLowerCase() + ')', 'info');
+                        sendSystemNotification('📅 Se acerca: ' + ev.title, quien + ' — ' + formatEventDate(ev.datetime), 'agenda-day-' + ev.id);
+                    }
                 }
             });
             saveAgendaMeta();
@@ -3954,10 +4036,10 @@
             if (!('Notification' in window)) return 'unsupported';
             return Notification.permission; // 'default' | 'granted' | 'denied'
         }
-        function sendSystemNotification(title, body) {
+        function sendSystemNotification(title, body, tag) {
             try {
                 if (('Notification' in window) && Notification.permission === 'granted') {
-                    new Notification(title, { body: body, tag: 'veltrix-agenda', icon: '' });
+                    new Notification(title, { body: body, tag: tag || ('veltrix-agenda-' + Date.now()), icon: '' });
                 }
             } catch (e) { /* algunos navegadores restringen; el aviso en pantalla ya se mostró */ }
         }
@@ -3990,7 +4072,7 @@
             if (!banner) return;
             const state = agendaNotifState();
             if (state === 'granted') {
-                if (txt) txt.textContent = 'Avisos activados: el navegador te recordará los eventos próximos (dentro de las 24 h) aunque estés en otra pestaña.';
+                if (txt) txt.textContent = 'Avisos activados: el navegador te avisará de los eventos nuevos y te recordará 24 h antes, 1 h antes y cuando llegue la hora (con esta página abierta, aunque estés en otra pestaña).';
                 if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Avisos activados'; btn.disabled = true; btn.classList.add('opacity-60', 'cursor-default'); }
             } else if (state === 'denied') {
                 if (txt) txt.textContent = 'Los avisos están bloqueados. Para recibirlos, habilitalos desde el candado 🔒 de la barra de direcciones.';
