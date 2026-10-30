@@ -1764,19 +1764,68 @@
         }
         async function testFaceGuardModel() {
             if (!requireFaceAdvAdmin()) return;
-            const el = document.getElementById('fa-status'); el.textContent = 'Comprobando…'; el.className = 'text-[11px] text-gray-400';
-            try {
-                if (document.getElementById('fa-server').checked) {
-                    const res = await fetch(aireBaseUrl() + '/api/face/status?warm=1', { cache: 'no-store' });
-                    const d = await res.json();
-                    if (d.available && d.loaded) {
-                        const extra = (d.backend || '—') + (d.livenessReady ? ', anti-foto activo' : ', SIN modelo anti-foto');
-                        el.textContent = '✔ IA 2 del servidor lista (' + extra + ').'; el.className = 'text-[11px] text-emerald-400'; return;
-                    }
-                    el.textContent = '✖ Servidor sin IA facial: ' + String(d.error || 'no cargó el modelo').split('\n')[0]; el.className = 'text-[11px] text-rose-400'; return;
+            const el = document.getElementById('fa-status');
+            if (!el) return;
+            const setStatus = (text, tone) => {
+                el.textContent = text;
+                el.className = 'text-[11px] ' + (tone === 'ok' ? 'text-emerald-400' : tone === 'warn' ? 'text-amber-400' : tone === 'error' ? 'text-rose-400' : 'text-gray-400');
+            };
+            const readError = (e) => {
+                const msg = String((e && e.message) || e || '');
+                if (e && e.name === 'AbortError') return 'el servidor tardó demasiado en responder';
+                if (/failed to fetch|networkerror|network error|load failed|fetch/i.test(msg)) return 'no se pudo conectar con el servidor';
+                return msg || 'error desconocido';
+            };
+            const getJson = async (url, ms) => {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), ms);
+                try {
+                    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+                    let data = null;
+                    try { data = await res.json(); } catch (e) { data = null; }
+                    return { res, data };
+                } finally { clearTimeout(timer); }
+            };
+            const testLocalModels = async () => {
+                try {
+                    await ensureFaceModels();
+                    return { ok: true, text: ssdReady ? 'IA 1 local lista (modelo preciso).' : 'IA 1 local lista.' };
+                } catch (e) {
+                    return { ok: false, text: 'La IA 1 local tampoco pudo cargar: ' + readError(e) + '.' };
                 }
-                await FaceGuard.load(); el.textContent = '✔ IA 2 (navegador) lista.'; el.className = 'text-[11px] text-emerald-400';
-            } catch (e) { el.textContent = '✖ No se pudo cargar: ' + (e.message || e); el.className = 'text-[11px] text-rose-400'; }
+            };
+
+            setStatus('Comprobando…', '');
+            try {
+                // /api/health existe en todas las versiones del servidor y evita
+                // el 404 sin CORS de /api/face/status en backends desactualizados.
+                const health = await getJson(aireBaseUrl() + '/api/health', 15000);
+                if (!health.res.ok) throw new Error('HTTP ' + health.res.status);
+
+                if (health.data && health.data.iaFacialServidor === true) {
+                    const status = await getJson(aireBaseUrl() + '/api/face/status?warm=1', 45000);
+                    const d = status.data || {};
+                    if (status.res.ok && d.available) {
+                        const extra = (d.backend || '—') + (d.livenessReady ? ', anti-foto activo' : ', SIN modelo anti-foto');
+                        setStatus('✔ IA 2 del servidor lista (' + extra + ').', 'ok');
+                        return;
+                    }
+                    const detail = String(d.error || 'modelo no disponible').split('\n')[0];
+                    setStatus('⚠ El servidor está en línea, pero la IA 2 no cargó: ' + detail, 'warn');
+                    return;
+                }
+
+                const local = await testLocalModels();
+                const backendKnowsFace = !!(health.data && Object.prototype.hasOwnProperty.call(health.data, 'iaFacialServidor'));
+                const base = backendKnowsFace
+                    ? '⚠ El servidor está en línea, pero la IA 2 no está instalada en el servidor.'
+                    : '⚠ El servidor está en línea, pero esta versión no incluye la IA 2.';
+                setStatus(base + ' ' + (local.ok ? local.text + ' El reconocimiento principal sigue funcionando.' : local.text), local.ok ? 'warn' : 'error');
+            } catch (e) {
+                const local = await testLocalModels();
+                setStatus('⚠ No se pudo contactar al servidor de IA 2 (' + readError(e) + '). ' +
+                    (local.ok ? local.text + ' El reconocimiento principal sigue funcionando.' : local.text), local.ok ? 'warn' : 'error');
+            }
         }
         document.addEventListener('DOMContentLoaded', loadFaceAdvUi);
         const ENROLL_STEPS = [
