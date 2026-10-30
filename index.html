@@ -245,8 +245,50 @@
         /* ---- Agenda ---- */
         #tab-agenda h2 > i { display: inline-block; animation: float-y 3.2s ease-in-out infinite; }
         #agenda-notif-banner { animation: slide-left 420ms cubic-bezier(.16, 1, .3, 1) both; }
-        #agenda-notif-banner .fa-bell { display: inline-block; transform-origin: 50% 0; animation: bell-ring 2.6s ease-in-out infinite; }
-        #agenda-bell:not(:hover) i { transform-origin: 50% 0; animation: bell-ring 4s ease-in-out infinite; }
+        /* ---- Campana: cuerpo y badajo con movimiento independiente ---- */
+        .veltrix-bell {
+            width: 1.18em;
+            height: 1.18em;
+            display: inline-block;
+            overflow: visible;
+            vertical-align: -0.16em;
+        }
+        .veltrix-bell .bell-body,
+        .veltrix-bell .bell-clapper {
+            transform-box: fill-box;
+            transform-origin: 50% 0%;
+            will-change: transform;
+        }
+        @keyframes bell-body-swing {
+            0%, 46%, 100% { transform: rotate(0deg); }
+            6% { transform: rotate(-10deg); }
+            14% { transform: rotate(8.5deg); }
+            22% { transform: rotate(-6deg); }
+            30% { transform: rotate(4deg); }
+            38% { transform: rotate(-2deg); }
+        }
+        @keyframes bell-clapper-swing {
+            0%, 46%, 100% { transform: rotate(-1.5deg); }
+            4% { transform: rotate(3deg); }
+            11% { transform: rotate(-40deg); }
+            19% { transform: rotate(32deg); }
+            27% { transform: rotate(-24deg); }
+            35% { transform: rotate(15deg); }
+            43% { transform: rotate(-6deg); }
+        }
+        #agenda-bell .veltrix-bell { width: 1.05rem; height: 1.05rem; }
+        #agenda-bell .bell-body { animation: bell-body-swing 3.9s cubic-bezier(.36, .07, .19, .97) infinite; }
+        #agenda-bell .bell-clapper { animation: bell-clapper-swing 3.9s cubic-bezier(.36, .07, .19, .97) infinite; }
+        #agenda-bell:hover .veltrix-bell { filter: drop-shadow(0 0 6px rgba(255, 215, 0, .55)); }
+        #agenda-bell:hover .bell-body,
+        #agenda-bell:hover .bell-clapper { animation-duration: 1.55s; }
+        #agenda-notif-banner .veltrix-bell { width: 1.28em; height: 1.28em; color: #FFD700; }
+        #agenda-notif-banner .bell-body { animation: bell-body-swing 3.4s cubic-bezier(.36, .07, .19, .97) infinite; }
+        #agenda-notif-banner .bell-clapper { animation: bell-clapper-swing 3.4s cubic-bezier(.36, .07, .19, .97) infinite; }
+        #agenda-notif-btn:hover .bell-body,
+        #agenda-notif-btn:focus-visible .bell-body { animation: bell-body-swing 1.1s cubic-bezier(.36, .07, .19, .97) infinite; }
+        #agenda-notif-btn:hover .bell-clapper,
+        #agenda-notif-btn:focus-visible .bell-clapper { animation: bell-clapper-swing 1.1s cubic-bezier(.36, .07, .19, .97) infinite; }
         #agenda-bell-badge:not(.hidden), #agenda-nav-badge:not(.hidden) { animation: ring-pulse 2.2s ease-out infinite; }
         #agenda-view-chips { animation: content-enter 380ms cubic-bezier(.16, 1, .3, 1) both; }
         .agenda-tab { position: relative; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -271,6 +313,126 @@
         #agenda-cal-day-list > *:nth-child(4), #agenda-personal-list > *:nth-child(4), #agenda-public-list > *:nth-child(4), #agenda-timeline-list > *:nth-child(4) { animation-delay: 150ms; }
         #agenda-cal-day-list > *:nth-child(n+5), #agenda-personal-list > *:nth-child(n+5), #agenda-public-list > *:nth-child(n+5), #agenda-timeline-list > *:nth-child(n+5) { animation-delay: 200ms; }
         #agenda-cal-day-list > *:hover, #agenda-personal-list > *:hover, #agenda-public-list > *:hover, #agenda-timeline-list > *:hover { transform: translateX(4px); border-color: rgba(255,215,0,.35); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+
+        /* ================= ESTADOS: NEUTRAL / HOVER / SELECCIONADO ================= */
+        ::selection { background: rgba(255,215,0,.32); color: #fff; }
+        input, textarea { caret-color: #FFD700; }
+
+        /* Navegación lateral */
+        #primary-nav .nav-item { position: relative; overflow: hidden; }
+        #primary-nav .nav-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(255,215,0,.16), rgba(255,215,0,.03) 55%, transparent);
+            opacity: 0;
+            transform: translateX(-16%);
+            transition: opacity 260ms ease, transform 340ms cubic-bezier(.16, 1, .3, 1);
+            pointer-events: none;
+        }
+        #primary-nav .nav-item:hover::before { opacity: 1; transform: translateX(0); }
+        #primary-nav .nav-item:hover { transform: translateX(3px); }
+        #primary-nav .nav-item:hover i { animation: icon-nudge 480ms cubic-bezier(.16, 1, .3, 1); }
+        #primary-nav .nav-item.bg-gold-500 {
+            color: #0D0D0D;
+            background-color: #FFD700;
+            box-shadow: 0 8px 22px rgba(255,215,0,.22), inset 0 1px 0 rgba(255,255,255,.22);
+        }
+        #primary-nav .nav-item.bg-gold-500:hover { background-color: #FFD700; color: #0D0D0D; }
+        #primary-nav .nav-item.bg-gold-500::before { opacity: 0; }
+        #primary-nav .nav-item.bg-gold-500::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 45%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
+            transform: translateX(-220%) skewX(-16deg);
+            animation: nav-sheen 5.6s ease-in-out infinite;
+            pointer-events: none;
+        }
+        #primary-nav .nav-item.bg-gold-500 i { animation: icon-selected-pop 460ms cubic-bezier(.16, 1, .3, 1); }
+
+        @keyframes icon-nudge {
+            0%, 100% { transform: translateX(0) rotate(0); }
+            35% { transform: translateX(2px) rotate(-6deg); }
+            70% { transform: translateX(-1px) rotate(3deg); }
+        }
+        @keyframes icon-selected-pop {
+            0% { transform: scale(.82) rotate(-9deg); }
+            62% { transform: scale(1.16) rotate(4deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        @keyframes nav-sheen {
+            0%, 72% { transform: translateX(-220%) skewX(-16deg); }
+            88%, 100% { transform: translateX(220%) skewX(-16deg); }
+        }
+
+        /* Tarjetas de estadística */
+        #tab-dashboard .stat-card { position: relative; overflow: hidden; }
+        #tab-dashboard .stat-card::before {
+            content: '';
+            position: absolute;
+            left: 12%;
+            right: 12%;
+            top: 0;
+            height: 2px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, transparent, rgba(255,215,0,.9), transparent);
+            transform: scaleX(0);
+            opacity: 0;
+            transition: transform 380ms cubic-bezier(.16, 1, .3, 1), opacity 260ms ease;
+        }
+        #tab-dashboard .stat-card:hover::before { transform: scaleX(1); opacity: 1; }
+        #tab-dashboard .stat-card:hover .stat-icon i { animation: icon-nudge 520ms cubic-bezier(.16, 1, .3, 1); }
+        #tab-dashboard .stat-card h3 { transition: text-shadow 260ms ease; }
+        #tab-dashboard .stat-card:hover h3 { text-shadow: 0 0 20px rgba(255,215,0,.32); }
+
+        /* Botones primarios */
+        button.bg-gold-500:not(:disabled):hover { box-shadow: 0 9px 26px rgba(255,215,0,.26); }
+        button:focus-visible { outline: 2px solid rgba(255,215,0,.85); outline-offset: 2px; }
+
+        /* Campos de formulario: neutral y seleccionado */
+        input:focus, select:focus, textarea:focus {
+            border-color: rgba(255,215,0,.6);
+            box-shadow: 0 0 0 3px rgba(255,215,0,.1), 0 0 22px rgba(255,215,0,.1);
+        }
+
+        /* Iconos de estadística: respiración ambiente suave */
+        #tab-dashboard .stat-card .stat-icon { animation: icon-breathe 5.2s ease-in-out infinite; }
+        #tab-dashboard .stat-card:nth-child(2) .stat-icon { animation-delay: .45s; }
+        #tab-dashboard .stat-card:nth-child(3) .stat-icon { animation-delay: .9s; }
+        #tab-dashboard .stat-card:nth-child(4) .stat-icon { animation-delay: 1.35s; }
+        @keyframes icon-breathe {
+            0%, 100% { filter: drop-shadow(0 0 0 rgba(255,215,0,0)); }
+            50% { filter: drop-shadow(0 0 9px rgba(255,215,0,.22)); }
+        }
+
+        /* Pestañas de la agenda */
+        .agenda-tab { border-radius: 12px 12px 0 0; }
+        .agenda-tab:hover { background: rgba(255,215,0,.06); }
+        .agenda-tab.is-active { background: linear-gradient(180deg, rgba(255,215,0,.15), rgba(255,215,0,.015)); text-shadow: 0 0 16px rgba(255,215,0,.35); }
+        .agenda-tab.is-active::after { animation: tab-underline 460ms cubic-bezier(.16, 1, .3, 1) both; }
+        @keyframes tab-underline {
+            0% { transform: scaleX(0); }
+            65% { transform: scaleX(1.05); }
+            100% { transform: scaleX(1); }
+        }
+
+        /* Día seleccionado del calendario */
+        #agenda-cal-grid > button.cal-selected {
+            animation: cal-select-pop 340ms cubic-bezier(.16, 1, .3, 1);
+            box-shadow: 0 0 0 2px #fff, 0 8px 18px rgba(0,0,0,.35);
+            z-index: 1;
+        }
+        @keyframes cal-select-pop {
+            0% { transform: scale(.84); }
+            62% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        /* Filas de la tabla */
+        #students-table-body tr:hover { background-color: rgba(255,215,0,.035); box-shadow: inset 3px 0 0 rgba(255,215,0,.85); }
 
         /* ---- AIRA IA ---- */
         #tab-nexus-ai > div { position: relative; overflow: hidden; animation: card-enter 460ms cubic-bezier(.16, 1, .3, 1) both, breathe 5s ease-in-out 500ms infinite; }
@@ -307,7 +469,7 @@
                 transition-duration: .01ms !important;
             }
             button:not(:disabled):hover, button:not(:disabled):active, .staff-card:hover, .stat-card:hover,
-            .staff-card.is-open,
+            .staff-card.is-open, #primary-nav .nav-item:hover,
             #students-table-body tr:hover, .tab-content > .bg-cardbg.border:hover,
             .tab-content > div > .bg-cardbg.border:hover {
                 transform: none;
@@ -489,7 +651,16 @@
             <!-- Botón de sesión (lo rellena updateAuthHeader) -->
             <div class="flex items-center gap-2">
                 <button id="agenda-bell" onclick="switchTab('agenda')" title="Agenda y notificaciones" class="relative w-9 h-9 rounded-xl bg-borderbg hover:bg-gold-500/20 hover:text-gold-500 text-gray-300 border border-borderbg flex items-center justify-center transition">
-                    <i class="fa-solid fa-bell text-sm"></i>
+                    <svg class="veltrix-bell" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <g class="bell-body">
+                            <path d="M6.3 9.4a5.7 5.7 0 0 1 11.4 0c0 3.9 1.1 5.4 1.8 6.2.4.5.1 1.2-.5 1.2H5c-.6 0-.9-.7-.5-1.2.7-.8 1.8-2.3 1.8-6.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                            <path d="M10.1 3.3a2.3 2.3 0 0 1 3.8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        </g>
+                        <g class="bell-clapper">
+                            <path d="M12 16.6v2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                            <circle cx="12" cy="20.6" r="1.65" fill="currentColor"/>
+                        </g>
+                    </svg>
                     <span id="agenda-bell-badge" class="hidden absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">0</span>
                 </button>
                 <div id="auth-header-btn" class="flex items-center"></div>
@@ -1012,8 +1183,32 @@
                     </div>
 
                     <div id="agenda-notif-banner" class="mb-5 rounded-xl px-4 py-3 border border-gold-500/30 bg-gold-500/10 flex items-center justify-between flex-wrap gap-3">
-                        <p class="text-[11px] text-gray-300 flex items-center gap-2"><i class="fa-solid fa-bell text-gold-500"></i> <span id="agenda-notif-text">Activá los avisos para que el navegador te recuerde los eventos aunque estés en otra pestaña.</span></p>
-                        <button id="agenda-notif-btn" onclick="enableAgendaNotifications()" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold text-[11px] px-3 py-2 rounded-xl flex items-center gap-2 transition"><i class="fa-solid fa-bell"></i> Activar avisos</button>
+                        <p class="text-[11px] text-gray-300 flex items-center gap-2">
+                            <svg class="veltrix-bell text-gold-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <g class="bell-body">
+                                    <path d="M6.3 9.4a5.7 5.7 0 0 1 11.4 0c0 3.9 1.1 5.4 1.8 6.2.4.5.1 1.2-.5 1.2H5c-.6 0-.9-.7-.5-1.2.7-.8 1.8-2.3 1.8-6.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                                    <path d="M10.1 3.3a2.3 2.3 0 0 1 3.8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                </g>
+                                <g class="bell-clapper">
+                                    <path d="M12 16.6v2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                    <circle cx="12" cy="20.6" r="1.65" fill="currentColor"/>
+                                </g>
+                            </svg>
+                            <span id="agenda-notif-text">Activá los avisos para que el navegador te recuerde los eventos aunque estés en otra pestaña.</span>
+                        </p>
+                        <button id="agenda-notif-btn" onclick="enableAgendaNotifications()" class="bg-gold-500 hover:bg-gold-600 text-darkbg font-bold text-[11px] px-3 py-2 rounded-xl flex items-center gap-2 transition">
+                            <svg class="veltrix-bell" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <g class="bell-body">
+                                    <path d="M6.3 9.4a5.7 5.7 0 0 1 11.4 0c0 3.9 1.1 5.4 1.8 6.2.4.5.1 1.2-.5 1.2H5c-.6 0-.9-.7-.5-1.2.7-.8 1.8-2.3 1.8-6.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                                    <path d="M10.1 3.3a2.3 2.3 0 0 1 3.8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                </g>
+                                <g class="bell-clapper">
+                                    <path d="M12 16.6v2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                    <circle cx="12" cy="20.6" r="1.65" fill="currentColor"/>
+                                </g>
+                            </svg>
+                            Activar avisos
+                        </button>
                     </div>
 
                     <!-- Modo de vista (opcional): ver todo, linea de tiempo, solo lo personal o solo lo que agrega la institucion -->
@@ -3894,7 +4089,7 @@
                 if (k === todayKey) extra += ';box-shadow:inset 0 0 0 2px #FFD700';
                 if (k === agendaCal.sel) extra += ';outline:2px solid #fff;outline-offset:1px';
                 const count = ev ? ev.g.length + ev.p.length : 0;
-                const cls = (k === todayKey ? ' cal-today' : '') + (count ? ' cal-has-ev' : '');
+                const cls = (k === todayKey ? ' cal-today' : '') + (count ? ' cal-has-ev' : '') + (k === agendaCal.sel ? ' cal-selected' : '');
                 html += `<button onclick="agendaCalSelect('${k}')" class="relative h-11 sm:h-14 rounded-md text-sm font-semibold hover:bg-borderbg/60${cls}" style="--i:${d};${bg};color:${color}${extra}">${d}${count > 1 ? `<span class="absolute top-0.5 right-1 text-[9px] font-bold opacity-80">${count}</span>` : ''}</button>`;
             }
             const gridEl = g('agenda-cal-grid');
@@ -4125,6 +4320,15 @@
                 }
             });
         }
+        const NOTIF_BELL_SVG = '<svg class="veltrix-bell" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+            + '<g class="bell-body">'
+            + '<path d="M6.3 9.4a5.7 5.7 0 0 1 11.4 0c0 3.9 1.1 5.4 1.8 6.2.4.5.1 1.2-.5 1.2H5c-.6 0-.9-.7-.5-1.2.7-.8 1.8-2.3 1.8-6.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>'
+            + '<path d="M10.1 3.3a2.3 2.3 0 0 1 3.8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
+            + '</g>'
+            + '<g class="bell-clapper">'
+            + '<path d="M12 16.6v2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
+            + '<circle cx="12" cy="20.6" r="1.65" fill="currentColor"/>'
+            + '</g></svg>';
         function updateAgendaNotifBanner() {
             const banner = document.getElementById('agenda-notif-banner');
             const txt = document.getElementById('agenda-notif-text');
@@ -4136,13 +4340,13 @@
                 if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Avisos activados'; btn.disabled = true; btn.classList.add('opacity-60', 'cursor-default'); }
             } else if (state === 'denied') {
                 if (txt) txt.textContent = 'Los avisos están bloqueados. Para recibirlos, habilitalos desde el candado 🔒 de la barra de direcciones.';
-                if (btn) { btn.innerHTML = '<i class="fa-solid fa-bell"></i> Reintentar'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-default'); }
+                if (btn) { btn.innerHTML = NOTIF_BELL_SVG + ' Reintentar'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-default'); }
             } else if (state === 'unsupported') {
                 if (txt) txt.textContent = 'Tu navegador no permite avisos de escritorio, pero igual vas a ver los recordatorios dentro de la página.';
                 if (btn) btn.classList.add('hidden');
             } else {
                 if (txt) txt.textContent = 'Activá los avisos para que el navegador te recuerde los eventos aunque estés en otra pestaña.';
-                if (btn) { btn.innerHTML = '<i class="fa-solid fa-bell"></i> Activar avisos'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-default', 'hidden'); }
+                if (btn) { btn.innerHTML = NOTIF_BELL_SVG + ' Activar avisos'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-default', 'hidden'); }
             }
         }
 
