@@ -3981,7 +3981,7 @@
             cloudSavePublicEvent(ev).then(ok => {
                 if (ok) {
                     showToast('📢 Evento publicado. Todos los usuarios reciben el aviso: ' + title, 'success');
-                    sendSystemNotification('📢 Evento publicado', title + ' — ' + formatEventDate(datetime), 'agenda-pub-' + ev.id);
+                    sendSystemNotification('Nuevo evento institucional: ' + title, 'Agenda Veltrix · ' + formatEventDate(datetime), 'agenda-pub-' + ev.id);
                 }
             });
             return ev;
@@ -4007,11 +4007,11 @@
             const freshFuture = fresh.filter(ev => new Date(ev.datetime).getTime() >= now - 6 * H);
             if (freshFuture.length > 3) {
                 showToast('📢 Hay ' + freshFuture.length + ' eventos públicos nuevos en la agenda.', 'info');
-                sendSystemNotification('📢 Eventos públicos nuevos', 'Hay ' + freshFuture.length + ' eventos nuevos en la agenda.', 'agenda-new-batch');
+                sendSystemNotification(freshFuture.length + ' eventos nuevos en la agenda', 'Todos son eventos institucionales. Abrí Veltrix para verlos.', 'agenda-new-batch');
             } else {
                 freshFuture.forEach(ev => {
                     showToast('📢 Nuevo evento público: ' + ev.title + ' — ' + formatEventDate(ev.datetime), 'info');
-                    sendSystemNotification('📢 Nuevo evento público', ev.title + ' — ' + formatEventDate(ev.datetime), 'agenda-new-' + ev.id);
+                    sendSystemNotification('Nuevo evento: ' + ev.title, 'Agenda institucional · ' + formatEventDate(ev.datetime), 'agenda-new-' + ev.id);
                 });
             }
             // 2) Recordatorios: 24 h antes, 1 h antes y cuando llega la fecha y hora marcadas.
@@ -4026,20 +4026,20 @@
                     if (!done('now')) {
                         mark('now', 'hour', 'day'); agendaReminded.add(ev.id);
                         showToast('🔔 ¡Es ahora! ' + quien + ': ' + ev.title, 'info');
-                        sendSystemNotification('🔔 ¡Es ahora! ' + ev.title, quien + ' — ' + formatEventDate(ev.datetime), 'agenda-now-' + ev.id);
+                        sendSystemNotification('Ahora: ' + ev.title, quien + ' · ' + formatEventDate(ev.datetime), 'agenda-now-' + ev.id, { requireInteraction: true });
                     }
                 } else if (diff > 0 && diff <= H) {
                     if (!done('hour')) {
                         mark('hour', 'day'); agendaReminded.add(ev.id);
                         const min = Math.max(1, Math.round(diff / 60000));
                         showToast('⏰ En ' + min + ' min: ' + ev.title + ' (' + quien.toLowerCase() + ')', 'info');
-                        sendSystemNotification('⏰ En ' + min + ' min: ' + ev.title, quien + ' — ' + formatEventDate(ev.datetime), 'agenda-hour-' + ev.id);
+                        sendSystemNotification('En ' + min + ' min: ' + ev.title, quien + ' · ' + formatEventDate(ev.datetime), 'agenda-hour-' + ev.id);
                     }
                 } else if (diff > H && diff <= 24 * H) {
                     if (!done('day') && !agendaReminded.has(ev.id)) {
                         mark('day');
                         showToast('📅 Se acerca: ' + ev.title + ' — ' + formatEventDate(ev.datetime) + ' (' + quien.toLowerCase() + ')', 'info');
-                        sendSystemNotification('📅 Se acerca: ' + ev.title, quien + ' — ' + formatEventDate(ev.datetime), 'agenda-day-' + ev.id);
+                        sendSystemNotification('Recordatorio: ' + ev.title, quien + ' · ' + formatEventDate(ev.datetime), 'agenda-day-' + ev.id);
                     }
                 }
             });
@@ -4048,14 +4048,34 @@
         }
 
         // ----- Notificaciones del navegador (recordatorios de agenda) -----
+        // Ícono con la identidad de Veltrix: fondo oscuro, escudo dorado y punto de
+        // notificación. Va embebido para que funcione tanto en local como en la web.
+        const VELTRIX_NOTIF_ICON = 'data:image/png;base64,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';
+
         function agendaNotifState() {
             if (!('Notification' in window)) return 'unsupported';
             return Notification.permission; // 'default' | 'granted' | 'denied'
         }
-        function sendSystemNotification(title, body, tag) {
+        function sendSystemNotification(title, body, tag, options = {}) {
             try {
                 if (('Notification' in window) && Notification.permission === 'granted') {
-                    new Notification(title, { body: body, tag: tag || ('veltrix-agenda-' + Date.now()), icon: '' });
+                    const notification = new Notification(title, {
+                        body: body,
+                        tag: tag || ('veltrix-agenda-' + Date.now()),
+                        icon: VELTRIX_NOTIF_ICON,
+                        badge: VELTRIX_NOTIF_ICON,
+                        lang: 'es',
+                        dir: 'ltr',
+                        timestamp: Date.now(),
+                        renotify: true,
+                        silent: false,
+                        requireInteraction: !!options.requireInteraction,
+                        data: { url: location.href }
+                    });
+                    notification.onclick = function () {
+                        try { window.focus(); switchTab('agenda'); } catch (e) { /* sin ventana */ }
+                        notification.close();
+                    };
                 }
             } catch (e) { /* algunos navegadores restringen; el aviso en pantalla ya se mostró */ }
         }
@@ -4066,7 +4086,7 @@
                 return;
             }
             if (state === 'granted') {
-                sendSystemNotification('✅ Avisos activados', 'Te vamos a recordar los eventos de tu agenda.');
+                sendSystemNotification('Avisos activados', 'Veltrix te va a recordar los eventos de tu agenda.', 'veltrix-welcome');
                 updateAgendaNotifBanner();
                 return;
             }
@@ -4077,7 +4097,7 @@
             Notification.requestPermission().then(function () {
                 updateAgendaNotifBanner();
                 if (Notification.permission === 'granted') {
-                    sendSystemNotification('✅ Avisos activados', 'Te vamos a recordar los eventos de tu agenda.');
+                    sendSystemNotification('Avisos activados', 'Veltrix te va a recordar los eventos de tu agenda.', 'veltrix-welcome');
                 }
             });
         }
